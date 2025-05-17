@@ -1,114 +1,149 @@
 module Plum.View
   ( View
-  , unView
-  , Attribute
-  , spacing
-  , row
-  , wrappedRow
-  , column
-  , wrappedColumn
-  , v
-  , s
-  , button
+  , view
+  , Nerve(..)
+  , Meat(..)
+  , Bones(..)
+  , grow
+  , Direction(..)
+  , Alignment(..)
+  , Length(..)
   ) where
 
 import Prelude
 
 import Data.Array as Array
+import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Foreign.Object (Object)
 import Foreign.Object as Object
-import Maquette (VNode, h, string)
-import Type.Row.Homogeneous (class Homogeneous)
-import Unsafe.Coerce (unsafeCoerce)
+import Maquette (VNode, string)
+import Maquette as Maquette
 
-newtype View :: Type -> Type
-newtype View msg = View ((msg -> Effect Unit) -> VNode)
+h :: String -> Skin -> Array VNode -> VNode
+h el (Skin styles) children = Maquette.h el { styles } children
 
-unView :: forall msg. View msg -> (msg -> Effect Unit) -> VNode
-unView (View node) = node
+data Length = Px Int | Fill | Fit
 
-data Attribute msg =
-  Spacing Int Int
+data Alignment = Start | Center | End
 
-spacing :: forall msg. Int -> Attribute msg
-spacing x = Spacing x x
+data Direction = X | Y
 
-data Context = Flexbox
+data Meat
+  = Spacing Int Int
+  | Explain
+  | Align Direction Alignment
+  | Width Length
+  | Height Length
+  | Wrapped
 
-newtype RenderedAttribute = RenderedAttribute { styles :: Object String }
+data Nerve msg = OnClick msg
 
-instance Semigroup RenderedAttribute where
-  append (RenderedAttribute x) (RenderedAttribute y) =
-    RenderedAttribute { styles: Object.union x.styles y.styles }
+type View msg = { nerves :: Array (Nerve msg), meat :: Array Meat, bones :: Bones msg }
 
-instance Monoid RenderedAttribute where
-  mempty = RenderedAttribute $ { styles: Object.empty }
+view :: forall msg. Array (Nerve msg) -> Array Meat -> Bones msg -> View msg
+view nerves meat bones = { nerves, meat, bones }
 
-renderAttribute :: forall msg. Context -> Attribute msg -> RenderedAttribute
-renderAttribute _ctx attr = RenderedAttribute $ case attr of
-  Spacing x y -> { styles: Object.insert "gap" (show x <> "px " <> show y <> "px") Object.empty }
+newtype Skin = Skin (Object String)
 
-renderWithStyles :: forall styles msg. Homogeneous styles String => Context -> Array (Attribute msg) -> { | styles } -> RenderedAttribute
-renderWithStyles ctx attrs styles = withStyles (renderAttributes ctx attrs) styles
+sk :: String -> String -> Skin
+sk key val = Skin $ Object.singleton key val
 
-withStyles :: forall styles. Homogeneous styles String => RenderedAttribute -> { | styles } -> RenderedAttribute
-withStyles (RenderedAttribute x) styles =
-  RenderedAttribute $ { styles: Object.union x.styles (Object.fromHomogeneous styles) }
+instance Semigroup Skin where
+  append (Skin x) (Skin y) = Skin $ Object.union x y
 
-renderAttributes :: forall msg. Context -> Array (Attribute msg) -> RenderedAttribute
-renderAttributes ctx = Array.foldMap (renderAttribute ctx)
+instance Monoid Skin where
+  mempty = Skin Object.empty
 
-v :: forall msg. Array (Attribute msg) -> View msg -> View msg
-v _ (View child) = View $ \fire -> h "div" {} [ child fire ]
+data Context = Grid | Flexbox Direction | Generic | Span
 
-row :: forall msg. Array (Attribute msg) -> Array (View msg) -> View msg
-row attrs children =
-  _v "div"
-    ( renderWithStyles Flexbox attrs
-        { display: "flex"
-        , "flex-direction": "row"
-        }
-    )
-    children
+skin :: Context -> Meat -> Skin
+skin ctx = case _ of
+  Spacing x y -> sk "gap" (show x <> "px " <> show y <> "px")
+  Explain -> sk "border" "dashed magenta"
+  Align dir alignment -> case ctx of
+    Generic -> mempty
+    Span -> mempty
+    Grid -> sk
+      ( case dir of
+          X -> "justify-items"
+          Y -> "align-items"
+      )
+      ( case alignment of
+          Start -> "start"
+          Center -> "center"
+          End -> "end"
+      )
 
-wrappedRow :: forall msg. Array (Attribute msg) -> Array (View msg) -> View msg
-wrappedRow attrs children =
-  _v "div"
-    ( renderWithStyles Flexbox attrs
-        { display: "flex"
-        , "flex-direction": "row"
-        , "flex-wrap": "wrap"
-        }
-    )
-    children
+    Flexbox flexDir -> sk
+      ( case flexDir /\ dir of
+          X /\ X -> "justify-content"
+          X /\ Y -> "align-items"
+          Y /\ X -> "align-items"
+          Y /\ Y -> "justify-content"
+      )
+      ( case alignment of
+          Start -> "flex-start"
+          Center -> "center"
+          End -> "flex-end"
+      )
+  Width l -> sk "width" (length l)
+  Height l -> sk "height" (length l)
+  Wrapped -> case ctx of
+    Flexbox _ -> sk "flex-wrap" "wrap"
+    _ -> mempty
 
-column :: forall msg. Array (Attribute msg) -> Array (View msg) -> View msg
-column attrs children =
-  _v "div"
-    ( renderWithStyles Flexbox attrs
-        { display: "flex"
-        , "flex-direction": "column"
-        }
-    )
-    children
+length :: Length -> String
+length = case _ of
+  Px px -> show px <> "px"
+  Fit -> "fit-content"
+  Fill -> "100%"
 
-wrappedColumn :: forall msg. Array (Attribute msg) -> Array (View msg) -> View msg
-wrappedColumn attrs children =
-  _v "div"
-    ( renderWithStyles Flexbox attrs
-        { display: "flex"
-        , "flex-direction": "column"
-        , "flex-wrap": "wrap"
-        }
-    )
-    children
+data Bones :: Type -> Type
+data Bones msg
+  = Column (Array (View msg))
+  | Row (Array (View msg))
+  | Stack (Array (View msg))
+  | Wrapper (View msg)
+  | Text String
 
-button :: forall msg. Array (Attribute msg) -> { onPress :: msg, view :: View msg } -> View msg
-button _ { onPress, view } = View $ \fire -> h "div" { onclick: fire onPress } [ unView view fire ]
+newtype Mutation = Mutation { extraSkin :: Skin }
 
-s :: forall msg. String -> View msg
-s x = View $ \_ -> string x
+instance Semigroup Mutation where
+  append (Mutation x) (Mutation y) = Mutation { extraSkin: x.extraSkin <> y.extraSkin }
 
-_v :: forall msg. String -> RenderedAttribute -> Array (View msg) -> View msg
-_v el attr children = View $ \fire -> h el (unsafeCoerce attr) (map (\(View f) -> f fire) children)
+instance Monoid Mutation where
+  mempty = Mutation { extraSkin: mempty }
+
+growSkin :: forall msg. (msg -> Effect Unit) -> Mutation -> View msg -> VNode
+growSkin fire (Mutation mutation) { meat, bones } =
+  let
+    alignCenter = [ Align X Center, Align Y Center ]
+    widthFill = [ Width Fill, Height Fill ]
+    skn ctx =
+      Array.foldMap (skin ctx)
+        ( meat
+            <> case ctx of
+              Span -> mempty
+              Grid -> widthFill
+              Flexbox _ -> widthFill
+              Generic -> widthFill
+            <> case ctx of
+              Grid -> alignCenter
+              Flexbox _ -> alignCenter
+              Span -> mempty
+              Generic -> alignCenter
+        ) <> mutation.extraSkin
+  in
+    case bones of
+      Text t -> h "span" (skn Span) [ string t ]
+      Wrapper x -> h "div" (skn (Flexbox X) <> sk "display" "flex" <> sk "flex-direction" "row") [ growSkin fire mempty x ]
+      Stack children -> h "div" (skn Grid <> sk "display" "grid")
+        (map (growSkin fire $ Mutation { extraSkin: sk "grid-row" "1" <> sk "grid-column" "1" }) children)
+      Row children -> h "div" (skn (Flexbox X) <> sk "display" "flex" <> sk "flex-direction" "row")
+        (map (growSkin fire mempty) children)
+      Column children -> h "div" (skn (Flexbox Y) <> sk "display" "flex" <> sk "flex-direction" "column")
+        (map (growSkin fire mempty) children)
+
+grow :: forall msg. (msg -> Effect Unit) -> View msg -> VNode
+grow fire v = growSkin fire mempty v

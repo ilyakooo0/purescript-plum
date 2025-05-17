@@ -5,8 +5,9 @@ import Prelude
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Ref as Ref
+import Maquette (h)
 import Maquette as Maquette
-import Plum.View (View, unView)
+import Plum.View (View, grow)
 import Web.DOM.NonElementParentNode (getElementById) as Web
 import Web.HTML (window) as Web
 import Web.HTML.HTMLDocument (toNonElementParentNode) as Web
@@ -26,11 +27,16 @@ run id plum = do
       projector <- Maquette.createProjector
       Maquette.replace projector element do
         model <- Ref.read modelRef
-        pure $ unView (plum.view model)
-          ( \msg -> do
-              m <- Ref.read modelRef
-              m_ <- plum.update msg m
-              Ref.write m_ modelRef
-          )
-
+        let
+          el = grow
+            ( \msg -> do
+                m <- Ref.read modelRef
+                m_ <- plum.update msg m
+                Ref.write m_ modelRef
+            )
+            (plum.view model)
+        pure $ Maquette.h "div" { styles: { height: "100%", width: "100%" } } [ el, Maquette.h "style" {} [ Maquette.string outerStyle ] ]
     Nothing -> pure unit
+
+outerStyle :: String
+outerStyle = "html,body{height:100%;padding:0;margin:0;}"

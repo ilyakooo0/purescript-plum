@@ -1,4 +1,18 @@
 (() => {
+  // output/Data.Function/index.js
+  var flip = function(f) {
+    return function(b) {
+      return function(a) {
+        return f(a)(b);
+      };
+    };
+  };
+  var $$const = function(a) {
+    return function(v) {
+      return a;
+    };
+  };
+
   // output/Data.Functor/foreign.js
   var arrayMap = function(f) {
     return function(arr) {
@@ -41,18 +55,50 @@
     };
   };
 
-  // output/Effect/foreign.js
-  var pureE = function(a) {
-    return function() {
-      return a;
+  // output/Data.Array/foreign.js
+  var rangeImpl = function(start2, end) {
+    var step2 = start2 > end ? -1 : 1;
+    var result = new Array(step2 * (end - start2) + 1);
+    var i = start2, n = 0;
+    while (i !== end) {
+      result[n++] = i;
+      i += step2;
+    }
+    result[n] = i;
+    return result;
+  };
+  var replicateFill = function(count, value12) {
+    if (count < 1) {
+      return [];
+    }
+    var result = new Array(count);
+    return result.fill(value12);
+  };
+  var replicatePolyfill = function(count, value12) {
+    var result = [];
+    var n = 0;
+    for (var i = 0; i < count; i++) {
+      result[n++] = value12;
+    }
+    return result;
+  };
+  var replicateImpl = typeof Array.prototype.fill === "function" ? replicateFill : replicatePolyfill;
+
+  // output/Data.Semigroup/foreign.js
+  var concatArray = function(xs) {
+    return function(ys) {
+      if (xs.length === 0) return ys;
+      if (ys.length === 0) return xs;
+      return xs.concat(ys);
     };
   };
-  var bindE = function(a) {
-    return function(f) {
-      return function() {
-        return f(a())();
-      };
-    };
+
+  // output/Data.Semigroup/index.js
+  var semigroupArray = {
+    append: concatArray
+  };
+  var append = function(dict) {
+    return dict.append;
   };
 
   // output/Control.Bind/foreign.js
@@ -79,6 +125,9 @@
   var bind = function(dict) {
     return dict.bind;
   };
+  var bindFlipped = function(dictBind) {
+    return flip(bind(dictBind));
+  };
 
   // output/Control.Monad/index.js
   var ap = function(dictMonad) {
@@ -95,14 +144,67 @@
     };
   };
 
-  // output/Data.Semigroup/index.js
-  var append = function(dict) {
-    return dict.append;
+  // output/Data.Bounded/foreign.js
+  var topChar = String.fromCharCode(65535);
+  var bottomChar = String.fromCharCode(0);
+  var topNumber = Number.POSITIVE_INFINITY;
+  var bottomNumber = Number.NEGATIVE_INFINITY;
+
+  // output/Data.Show/foreign.js
+  var showIntImpl = function(n) {
+    return n.toString();
   };
 
+  // output/Data.Show/index.js
+  var showInt = {
+    show: showIntImpl
+  };
+  var show = function(dict) {
+    return dict.show;
+  };
+
+  // output/Data.Maybe/index.js
+  var Nothing = /* @__PURE__ */ function() {
+    function Nothing2() {
+    }
+    ;
+    Nothing2.value = new Nothing2();
+    return Nothing2;
+  }();
+  var Just = /* @__PURE__ */ function() {
+    function Just2(value0) {
+      this.value0 = value0;
+    }
+    ;
+    Just2.create = function(value0) {
+      return new Just2(value0);
+    };
+    return Just2;
+  }();
+
   // output/Data.Monoid/index.js
+  var monoidArray = {
+    mempty: [],
+    Semigroup0: function() {
+      return semigroupArray;
+    }
+  };
   var mempty = function(dict) {
     return dict.mempty;
+  };
+
+  // output/Effect/foreign.js
+  var pureE = function(a) {
+    return function() {
+      return a;
+    };
+  };
+  var bindE = function(a) {
+    return function(f) {
+      return function() {
+        return f(a())();
+      };
+    };
   };
 
   // output/Effect/index.js
@@ -153,44 +255,6 @@
   });
   var functorEffect = /* @__PURE__ */ $lazy_functorEffect(20);
 
-  // output/Data.Bounded/foreign.js
-  var topChar = String.fromCharCode(65535);
-  var bottomChar = String.fromCharCode(0);
-  var topNumber = Number.POSITIVE_INFINITY;
-  var bottomNumber = Number.NEGATIVE_INFINITY;
-
-  // output/Data.Show/foreign.js
-  var showIntImpl = function(n) {
-    return n.toString();
-  };
-
-  // output/Data.Show/index.js
-  var showInt = {
-    show: showIntImpl
-  };
-  var show = function(dict) {
-    return dict.show;
-  };
-
-  // output/Data.Maybe/index.js
-  var Nothing = /* @__PURE__ */ function() {
-    function Nothing2() {
-    }
-    ;
-    Nothing2.value = new Nothing2();
-    return Nothing2;
-  }();
-  var Just = /* @__PURE__ */ function() {
-    function Just2(value0) {
-      this.value0 = value0;
-    }
-    ;
-    Just2.create = function(value0) {
-      return new Just2(value0);
-    };
-    return Just2;
-  }();
-
   // output/Effect.Ref/foreign.js
   var _new = function(val) {
     return function() {
@@ -213,12 +277,169 @@
   // output/Effect.Ref/index.js
   var $$new = _new;
 
+  // output/Control.Monad.ST.Internal/foreign.js
+  var map_ = function(f) {
+    return function(a) {
+      return function() {
+        return f(a());
+      };
+    };
+  };
+  var pure_ = function(a) {
+    return function() {
+      return a;
+    };
+  };
+  var bind_ = function(a) {
+    return function(f) {
+      return function() {
+        return f(a())();
+      };
+    };
+  };
+
+  // output/Control.Monad.ST.Internal/index.js
+  var $runtime_lazy2 = function(name14, moduleName, init) {
+    var state2 = 0;
+    var val;
+    return function(lineNumber) {
+      if (state2 === 2) return val;
+      if (state2 === 1) throw new ReferenceError(name14 + " was needed before it finished initializing (module " + moduleName + ", line " + lineNumber + ")", moduleName, lineNumber);
+      state2 = 1;
+      val = init();
+      state2 = 2;
+      return val;
+    };
+  };
+  var functorST = {
+    map: map_
+  };
+  var monadST = {
+    Applicative0: function() {
+      return applicativeST;
+    },
+    Bind1: function() {
+      return bindST;
+    }
+  };
+  var bindST = {
+    bind: bind_,
+    Apply0: function() {
+      return $lazy_applyST(0);
+    }
+  };
+  var applicativeST = {
+    pure: pure_,
+    Apply0: function() {
+      return $lazy_applyST(0);
+    }
+  };
+  var $lazy_applyST = /* @__PURE__ */ $runtime_lazy2("applyST", "Control.Monad.ST.Internal", function() {
+    return {
+      apply: ap(monadST),
+      Functor0: function() {
+        return functorST;
+      }
+    };
+  });
+
+  // output/Data.Foldable/foreign.js
+  var foldrArray = function(f) {
+    return function(init) {
+      return function(xs) {
+        var acc = init;
+        var len = xs.length;
+        for (var i = len - 1; i >= 0; i--) {
+          acc = f(xs[i])(acc);
+        }
+        return acc;
+      };
+    };
+  };
+  var foldlArray = function(f) {
+    return function(init) {
+      return function(xs) {
+        var acc = init;
+        var len = xs.length;
+        for (var i = 0; i < len; i++) {
+          acc = f(acc)(xs[i]);
+        }
+        return acc;
+      };
+    };
+  };
+
+  // output/Data.Tuple/index.js
+  var Tuple = /* @__PURE__ */ function() {
+    function Tuple2(value0, value1) {
+      this.value0 = value0;
+      this.value1 = value1;
+    }
+    ;
+    Tuple2.create = function(value0) {
+      return function(value1) {
+        return new Tuple2(value0, value1);
+      };
+    };
+    return Tuple2;
+  }();
+
+  // output/Unsafe.Coerce/foreign.js
+  var unsafeCoerce2 = function(x) {
+    return x;
+  };
+
+  // output/Data.Foldable/index.js
+  var foldr = function(dict) {
+    return dict.foldr;
+  };
+  var foldMapDefaultR = function(dictFoldable) {
+    var foldr2 = foldr(dictFoldable);
+    return function(dictMonoid) {
+      var append3 = append(dictMonoid.Semigroup0());
+      var mempty3 = mempty(dictMonoid);
+      return function(f) {
+        return foldr2(function(x) {
+          return function(acc) {
+            return append3(f(x))(acc);
+          };
+        })(mempty3);
+      };
+    };
+  };
+  var foldableArray = {
+    foldr: foldrArray,
+    foldl: foldlArray,
+    foldMap: function(dictMonoid) {
+      return foldMapDefaultR(foldableArray)(dictMonoid);
+    }
+  };
+  var foldMap = function(dict) {
+    return dict.foldMap;
+  };
+
+  // output/Data.Function.Uncurried/foreign.js
+  var runFn2 = function(fn) {
+    return function(a) {
+      return function(b) {
+        return fn(a, b);
+      };
+    };
+  };
+
+  // output/Data.Array/index.js
+  var foldMap1 = /* @__PURE__ */ foldMap(foldableArray);
+  var range2 = /* @__PURE__ */ runFn2(rangeImpl);
+  var foldMap2 = function(dictMonoid) {
+    return foldMap1(dictMonoid);
+  };
+
   // output/Maquette/foreign.js
   var NAMESPACE_W3 = "http://www.w3.org/";
   var NAMESPACE_SVG = NAMESPACE_W3 + "2000/svg";
   var NAMESPACE_XLINK = NAMESPACE_W3 + "1999/xlink";
   var emptyArray = [];
-  var extend = function(base, overrides) {
+  var extend2 = function(base, overrides) {
     var result = {};
     Object.keys(base).forEach(function(key) {
       result[key] = base[key];
@@ -467,7 +688,7 @@
             domNode.id = found;
           } else {
             if (found === "svg") {
-              projectionOptions = extend(projectionOptions, {
+              projectionOptions = extend2(projectionOptions, {
                 namespace: NAMESPACE_SVG
               });
             }
@@ -657,7 +878,7 @@
       vnode.domNode = domNode;
     } else {
       if (vnode.vnodeSelector.lastIndexOf("svg", 0) === 0) {
-        projectionOptions = extend(projectionOptions, {
+        projectionOptions = extend2(projectionOptions, {
           namespace: NAMESPACE_SVG
         });
       }
@@ -718,7 +939,7 @@
     }
   };
   var applyDefaultProjectionOptions = function(projectorOptions) {
-    return extend(DEFAULT_PROJECTION_OPTIONS, projectorOptions);
+    return extend2(DEFAULT_PROJECTION_OPTIONS, projectorOptions);
   };
   var dom = {
     /**
@@ -854,20 +1075,20 @@
     }
     return parentNodePath;
   };
-  var find;
+  var find2;
   if (Array.prototype.find) {
-    find = function(items, predicate) {
+    find2 = function(items, predicate) {
       return items.find(predicate);
     };
   } else {
-    find = function(items, predicate) {
+    find2 = function(items, predicate) {
       return items.filter(predicate)[0];
     };
   }
   var findVNodeByParentNodePath = function(vnode, parentNodePath) {
     var result = vnode;
     parentNodePath.forEach(function(node) {
-      result = result && result.children ? find(result.children, function(child) {
+      result = result && result.children ? find2(result.children, function(child) {
         return child.domNode === node;
       }) : void 0;
     });
@@ -989,159 +1210,9 @@
     };
   }
 
-  // output/Unsafe.Coerce/foreign.js
-  var unsafeCoerce2 = function(x) {
-    return x;
-  };
-
   // output/Maquette/index.js
   var string = unsafeCoerce2;
   var h2 = _h;
-
-  // output/Data.Array/foreign.js
-  var replicateFill = function(count, value12) {
-    if (count < 1) {
-      return [];
-    }
-    var result = new Array(count);
-    return result.fill(value12);
-  };
-  var replicatePolyfill = function(count, value12) {
-    var result = [];
-    var n = 0;
-    for (var i = 0; i < count; i++) {
-      result[n++] = value12;
-    }
-    return result;
-  };
-  var replicateImpl = typeof Array.prototype.fill === "function" ? replicateFill : replicatePolyfill;
-
-  // output/Control.Monad.ST.Internal/foreign.js
-  var map_ = function(f) {
-    return function(a) {
-      return function() {
-        return f(a());
-      };
-    };
-  };
-  var pure_ = function(a) {
-    return function() {
-      return a;
-    };
-  };
-  var bind_ = function(a) {
-    return function(f) {
-      return function() {
-        return f(a())();
-      };
-    };
-  };
-
-  // output/Control.Monad.ST.Internal/index.js
-  var $runtime_lazy2 = function(name14, moduleName, init) {
-    var state2 = 0;
-    var val;
-    return function(lineNumber) {
-      if (state2 === 2) return val;
-      if (state2 === 1) throw new ReferenceError(name14 + " was needed before it finished initializing (module " + moduleName + ", line " + lineNumber + ")", moduleName, lineNumber);
-      state2 = 1;
-      val = init();
-      state2 = 2;
-      return val;
-    };
-  };
-  var functorST = {
-    map: map_
-  };
-  var monadST = {
-    Applicative0: function() {
-      return applicativeST;
-    },
-    Bind1: function() {
-      return bindST;
-    }
-  };
-  var bindST = {
-    bind: bind_,
-    Apply0: function() {
-      return $lazy_applyST(0);
-    }
-  };
-  var applicativeST = {
-    pure: pure_,
-    Apply0: function() {
-      return $lazy_applyST(0);
-    }
-  };
-  var $lazy_applyST = /* @__PURE__ */ $runtime_lazy2("applyST", "Control.Monad.ST.Internal", function() {
-    return {
-      apply: ap(monadST),
-      Functor0: function() {
-        return functorST;
-      }
-    };
-  });
-
-  // output/Data.Foldable/foreign.js
-  var foldrArray = function(f) {
-    return function(init) {
-      return function(xs) {
-        var acc = init;
-        var len = xs.length;
-        for (var i = len - 1; i >= 0; i--) {
-          acc = f(xs[i])(acc);
-        }
-        return acc;
-      };
-    };
-  };
-  var foldlArray = function(f) {
-    return function(init) {
-      return function(xs) {
-        var acc = init;
-        var len = xs.length;
-        for (var i = 0; i < len; i++) {
-          acc = f(acc)(xs[i]);
-        }
-        return acc;
-      };
-    };
-  };
-
-  // output/Data.Foldable/index.js
-  var foldr = function(dict) {
-    return dict.foldr;
-  };
-  var foldMapDefaultR = function(dictFoldable) {
-    var foldr2 = foldr(dictFoldable);
-    return function(dictMonoid) {
-      var append2 = append(dictMonoid.Semigroup0());
-      var mempty2 = mempty(dictMonoid);
-      return function(f) {
-        return foldr2(function(x) {
-          return function(acc) {
-            return append2(f(x))(acc);
-          };
-        })(mempty2);
-      };
-    };
-  };
-  var foldableArray = {
-    foldr: foldrArray,
-    foldl: foldlArray,
-    foldMap: function(dictMonoid) {
-      return foldMapDefaultR(foldableArray)(dictMonoid);
-    }
-  };
-  var foldMap = function(dict) {
-    return dict.foldMap;
-  };
-
-  // output/Data.Array/index.js
-  var foldMap1 = /* @__PURE__ */ foldMap(foldableArray);
-  var foldMap2 = function(dictMonoid) {
-    return foldMap1(dictMonoid);
-  };
 
   // output/Foreign.Object/foreign.js
   function _copyST(m) {
@@ -1197,6 +1268,9 @@
   });
 
   // output/Foreign.Object.ST/foreign.js
+  var newImpl = function() {
+    return {};
+  };
   function poke2(k) {
     return function(v) {
       return function(m) {
@@ -1209,23 +1283,21 @@
   }
 
   // output/Foreign.Object/index.js
+  var bindFlipped2 = /* @__PURE__ */ bindFlipped(bindST);
   var thawST = _copyST;
+  var singleton2 = function(k) {
+    return function(v) {
+      return runST(bindFlipped2(poke2(k)(v))(newImpl));
+    };
+  };
   var mutate = function(f) {
     return function(m) {
       return runST(function __do() {
-        var s2 = thawST(m)();
-        f(s2)();
-        return s2;
+        var s = thawST(m)();
+        f(s)();
+        return s;
       });
     };
-  };
-  var insert = function(k) {
-    return function(v) {
-      return mutate(poke2(k)(v));
-    };
-  };
-  var fromHomogeneous = function() {
-    return unsafeCoerce2;
   };
   var foldM = function(dictMonad) {
     var bind1 = bind(dictMonad.Bind1());
@@ -1238,27 +1310,111 @@
   };
   var foldM1 = /* @__PURE__ */ foldM(monadST);
   var union = function(m) {
-    return mutate(function(s2) {
+    return mutate(function(s) {
       return foldM1(function(s$prime) {
         return function(k) {
           return function(v) {
             return poke2(k)(v)(s$prime);
           };
         };
-      })(s2)(m);
+      })(s)(m);
     });
   };
 
   // output/Plum.View/index.js
-  var fromHomogeneous2 = /* @__PURE__ */ fromHomogeneous();
   var show2 = /* @__PURE__ */ show(showInt);
+  var append1 = /* @__PURE__ */ append(semigroupArray);
+  var mempty2 = /* @__PURE__ */ mempty(monoidArray);
   var map2 = /* @__PURE__ */ map(functorArray);
-  var Flexbox = /* @__PURE__ */ function() {
-    function Flexbox2() {
+  var Px = /* @__PURE__ */ function() {
+    function Px2(value0) {
+      this.value0 = value0;
     }
     ;
-    Flexbox2.value = new Flexbox2();
+    Px2.create = function(value0) {
+      return new Px2(value0);
+    };
+    return Px2;
+  }();
+  var Fill = /* @__PURE__ */ function() {
+    function Fill2() {
+    }
+    ;
+    Fill2.value = new Fill2();
+    return Fill2;
+  }();
+  var Fit = /* @__PURE__ */ function() {
+    function Fit2() {
+    }
+    ;
+    Fit2.value = new Fit2();
+    return Fit2;
+  }();
+  var X = /* @__PURE__ */ function() {
+    function X2() {
+    }
+    ;
+    X2.value = new X2();
+    return X2;
+  }();
+  var Y = /* @__PURE__ */ function() {
+    function Y2() {
+    }
+    ;
+    Y2.value = new Y2();
+    return Y2;
+  }();
+  var Grid = /* @__PURE__ */ function() {
+    function Grid2() {
+    }
+    ;
+    Grid2.value = new Grid2();
+    return Grid2;
+  }();
+  var Flexbox = /* @__PURE__ */ function() {
+    function Flexbox2(value0) {
+      this.value0 = value0;
+    }
+    ;
+    Flexbox2.create = function(value0) {
+      return new Flexbox2(value0);
+    };
     return Flexbox2;
+  }();
+  var Generic = /* @__PURE__ */ function() {
+    function Generic2() {
+    }
+    ;
+    Generic2.value = new Generic2();
+    return Generic2;
+  }();
+  var Span = /* @__PURE__ */ function() {
+    function Span2() {
+    }
+    ;
+    Span2.value = new Span2();
+    return Span2;
+  }();
+  var Start = /* @__PURE__ */ function() {
+    function Start2() {
+    }
+    ;
+    Start2.value = new Start2();
+    return Start2;
+  }();
+  var Center = /* @__PURE__ */ function() {
+    function Center2() {
+    }
+    ;
+    Center2.value = new Center2();
+    return Center2;
+  }();
+  var End = /* @__PURE__ */ function() {
+    function End2() {
+    }
+    ;
+    End2.value = new End2();
+    return End2;
   }();
   var Spacing = /* @__PURE__ */ function() {
     function Spacing2(value0, value1) {
@@ -1273,91 +1429,356 @@
     };
     return Spacing2;
   }();
-  var semigroupRenderedAttribut = {
-    append: function(v1) {
-      return function(v2) {
+  var Explain = /* @__PURE__ */ function() {
+    function Explain2() {
+    }
+    ;
+    Explain2.value = new Explain2();
+    return Explain2;
+  }();
+  var Align = /* @__PURE__ */ function() {
+    function Align2(value0, value1) {
+      this.value0 = value0;
+      this.value1 = value1;
+    }
+    ;
+    Align2.create = function(value0) {
+      return function(value1) {
+        return new Align2(value0, value1);
+      };
+    };
+    return Align2;
+  }();
+  var Width = /* @__PURE__ */ function() {
+    function Width2(value0) {
+      this.value0 = value0;
+    }
+    ;
+    Width2.create = function(value0) {
+      return new Width2(value0);
+    };
+    return Width2;
+  }();
+  var Height = /* @__PURE__ */ function() {
+    function Height2(value0) {
+      this.value0 = value0;
+    }
+    ;
+    Height2.create = function(value0) {
+      return new Height2(value0);
+    };
+    return Height2;
+  }();
+  var Wrapped = /* @__PURE__ */ function() {
+    function Wrapped2() {
+    }
+    ;
+    Wrapped2.value = new Wrapped2();
+    return Wrapped2;
+  }();
+  var Column = /* @__PURE__ */ function() {
+    function Column2(value0) {
+      this.value0 = value0;
+    }
+    ;
+    Column2.create = function(value0) {
+      return new Column2(value0);
+    };
+    return Column2;
+  }();
+  var Row = /* @__PURE__ */ function() {
+    function Row2(value0) {
+      this.value0 = value0;
+    }
+    ;
+    Row2.create = function(value0) {
+      return new Row2(value0);
+    };
+    return Row2;
+  }();
+  var Stack = /* @__PURE__ */ function() {
+    function Stack2(value0) {
+      this.value0 = value0;
+    }
+    ;
+    Stack2.create = function(value0) {
+      return new Stack2(value0);
+    };
+    return Stack2;
+  }();
+  var Wrapper = /* @__PURE__ */ function() {
+    function Wrapper2(value0) {
+      this.value0 = value0;
+    }
+    ;
+    Wrapper2.create = function(value0) {
+      return new Wrapper2(value0);
+    };
+    return Wrapper2;
+  }();
+  var Text = /* @__PURE__ */ function() {
+    function Text2(value0) {
+      this.value0 = value0;
+    }
+    ;
+    Text2.create = function(value0) {
+      return new Text2(value0);
+    };
+    return Text2;
+  }();
+  var semigroupSkin = {
+    append: function(v) {
+      return function(v1) {
+        return union(v)(v1);
+      };
+    }
+  };
+  var append2 = /* @__PURE__ */ append(semigroupSkin);
+  var semigroupMutation = {
+    append: function(v) {
+      return function(v1) {
         return {
-          styles: union(v1.styles)(v2.styles)
+          extraSkin: append2(v.extraSkin)(v1.extraSkin)
         };
       };
     }
   };
-  var monoidRenderedAttribute = {
+  var monoidSkin = {
+    mempty: empty2,
+    Semigroup0: function() {
+      return semigroupSkin;
+    }
+  };
+  var mempty1 = /* @__PURE__ */ mempty(monoidSkin);
+  var foldMap3 = /* @__PURE__ */ foldMap2(monoidSkin);
+  var monoidMutation = {
     mempty: {
-      styles: empty2
+      extraSkin: mempty1
     },
     Semigroup0: function() {
-      return semigroupRenderedAttribut;
+      return semigroupMutation;
     }
   };
-  var foldMap3 = /* @__PURE__ */ foldMap2(monoidRenderedAttribute);
-  var withStyles = function() {
-    return function(v1) {
-      return function(styles) {
+  var mempty22 = /* @__PURE__ */ mempty(monoidMutation);
+  var view = function(nerves) {
+    return function(meat) {
+      return function(bones) {
         return {
-          styles: union(v1.styles)(fromHomogeneous2(styles))
+          nerves,
+          meat,
+          bones
         };
       };
     };
   };
-  var withStyles1 = /* @__PURE__ */ withStyles();
-  var unView = function(v1) {
-    return v1;
-  };
-  var spacing = function(x) {
-    return new Spacing(x, x);
-  };
-  var s = function(x) {
-    return function(v1) {
-      return string(x);
+  var sk = function(key) {
+    return function(val) {
+      return singleton2(key)(val);
     };
   };
-  var renderAttribute = function(_ctx) {
-    return function(attr) {
-      return {
-        styles: insert("gap")(show2(attr.value0) + ("px " + (show2(attr.value1) + "px")))(empty2)
-      };
+  var length2 = function(v) {
+    if (v instanceof Px) {
+      return show2(v.value0) + "px";
+    }
+    ;
+    if (v instanceof Fit) {
+      return "fit-content";
+    }
+    ;
+    if (v instanceof Fill) {
+      return "100%";
+    }
+    ;
+    throw new Error("Failed pattern match at Plum.View (line 99, column 10 - line 102, column 17): " + [v.constructor.name]);
+  };
+  var skin = function(ctx) {
+    return function(v) {
+      if (v instanceof Spacing) {
+        return sk("gap")(show2(v.value0) + ("px " + (show2(v.value1) + "px")));
+      }
+      ;
+      if (v instanceof Explain) {
+        return sk("border")("dashed magenta");
+      }
+      ;
+      if (v instanceof Align) {
+        if (ctx instanceof Generic) {
+          return mempty1;
+        }
+        ;
+        if (ctx instanceof Span) {
+          return mempty1;
+        }
+        ;
+        if (ctx instanceof Grid) {
+          return sk(function() {
+            if (v.value0 instanceof X) {
+              return "justify-items";
+            }
+            ;
+            if (v.value0 instanceof Y) {
+              return "align-items";
+            }
+            ;
+            throw new Error("Failed pattern match at Plum.View (line 70, column 9 - line 72, column 29): " + [v.value0.constructor.name]);
+          }())(function() {
+            if (v.value1 instanceof Start) {
+              return "start";
+            }
+            ;
+            if (v.value1 instanceof Center) {
+              return "center";
+            }
+            ;
+            if (v.value1 instanceof End) {
+              return "end";
+            }
+            ;
+            throw new Error("Failed pattern match at Plum.View (line 74, column 9 - line 77, column 23): " + [v.value1.constructor.name]);
+          }());
+        }
+        ;
+        if (ctx instanceof Flexbox) {
+          return sk(function() {
+            var v1 = new Tuple(ctx.value0, v.value0);
+            if (v1.value0 instanceof X && v1.value1 instanceof X) {
+              return "justify-content";
+            }
+            ;
+            if (v1.value0 instanceof X && v1.value1 instanceof Y) {
+              return "align-items";
+            }
+            ;
+            if (v1.value0 instanceof Y && v1.value1 instanceof X) {
+              return "align-items";
+            }
+            ;
+            if (v1.value0 instanceof Y && v1.value1 instanceof Y) {
+              return "justify-content";
+            }
+            ;
+            throw new Error("Failed pattern match at Plum.View (line 81, column 9 - line 85, column 38): " + [v1.constructor.name]);
+          }())(function() {
+            if (v.value1 instanceof Start) {
+              return "flex-start";
+            }
+            ;
+            if (v.value1 instanceof Center) {
+              return "center";
+            }
+            ;
+            if (v.value1 instanceof End) {
+              return "flex-end";
+            }
+            ;
+            throw new Error("Failed pattern match at Plum.View (line 87, column 9 - line 90, column 28): " + [v.value1.constructor.name]);
+          }());
+        }
+        ;
+        throw new Error("Failed pattern match at Plum.View (line 66, column 26 - line 91, column 8): " + [ctx.constructor.name]);
+      }
+      ;
+      if (v instanceof Width) {
+        return sk("width")(length2(v.value0));
+      }
+      ;
+      if (v instanceof Height) {
+        return sk("height")(length2(v.value0));
+      }
+      ;
+      if (v instanceof Wrapped) {
+        if (ctx instanceof Flexbox) {
+          return sk("flex-wrap")("wrap");
+        }
+        ;
+        return mempty1;
+      }
+      ;
+      throw new Error("Failed pattern match at Plum.View (line 63, column 12 - line 96, column 16): " + [v.constructor.name]);
     };
   };
-  var renderAttributes = function(ctx) {
-    return foldMap3(renderAttribute(ctx));
-  };
-  var renderWithStyles = function() {
-    return function(ctx) {
-      return function(attrs) {
-        return function(styles) {
-          return withStyles1(renderAttributes(ctx)(attrs))(styles);
-        };
-      };
-    };
-  };
-  var renderWithStyles1 = /* @__PURE__ */ renderWithStyles();
-  var button = function(v1) {
-    return function(v2) {
-      return function(fire) {
-        return h2("div")({
-          onclick: fire(v2.onPress)
-        })([unView(v2.view)(fire)]);
-      };
-    };
-  };
-  var _v = function(el) {
-    return function(attr) {
+  var h3 = function(el) {
+    return function(v) {
       return function(children) {
-        return function(fire) {
-          return h2(el)(attr)(map2(function(v1) {
-            return v1(fire);
-          })(children));
-        };
+        return h2(el)({
+          styles: v
+        })(children);
       };
     };
   };
-  var row = function(attrs) {
-    return function(children) {
-      return _v("div")(renderWithStyles1(Flexbox.value)(attrs)({
-        display: "flex",
-        "flex-direction": "row"
-      }))(children);
+  var growSkin = function(fire) {
+    return function(v) {
+      return function(v1) {
+        var widthFill = [new Width(Fill.value), new Height(Fill.value)];
+        var alignCenter = [new Align(X.value, Center.value), new Align(Y.value, Center.value)];
+        var skn = function(ctx) {
+          return append2(foldMap3(skin(ctx))(append1(v1.meat)(append1(function() {
+            if (ctx instanceof Span) {
+              return mempty2;
+            }
+            ;
+            if (ctx instanceof Grid) {
+              return widthFill;
+            }
+            ;
+            if (ctx instanceof Flexbox) {
+              return widthFill;
+            }
+            ;
+            if (ctx instanceof Generic) {
+              return widthFill;
+            }
+            ;
+            throw new Error("Failed pattern match at Plum.View (line 128, column 16 - line 132, column 35): " + [ctx.constructor.name]);
+          }())(function() {
+            if (ctx instanceof Grid) {
+              return alignCenter;
+            }
+            ;
+            if (ctx instanceof Flexbox) {
+              return alignCenter;
+            }
+            ;
+            if (ctx instanceof Span) {
+              return mempty2;
+            }
+            ;
+            if (ctx instanceof Generic) {
+              return alignCenter;
+            }
+            ;
+            throw new Error("Failed pattern match at Plum.View (line 133, column 16 - line 137, column 37): " + [ctx.constructor.name]);
+          }()))))(v.extraSkin);
+        };
+        if (v1.bones instanceof Text) {
+          return h3("span")(skn(Span.value))([string(v1.bones.value0)]);
+        }
+        ;
+        if (v1.bones instanceof Wrapper) {
+          return h3("div")(append2(skn(new Flexbox(X.value)))(append2(sk("display")("flex"))(sk("flex-direction")("row"))))([growSkin(fire)(mempty22)(v1.bones.value0)]);
+        }
+        ;
+        if (v1.bones instanceof Stack) {
+          return h3("div")(append2(skn(Grid.value))(sk("display")("grid")))(map2(growSkin(fire)({
+            extraSkin: append2(sk("grid-row")("1"))(sk("grid-column")("1"))
+          }))(v1.bones.value0));
+        }
+        ;
+        if (v1.bones instanceof Row) {
+          return h3("div")(append2(skn(new Flexbox(X.value)))(append2(sk("display")("flex"))(sk("flex-direction")("row"))))(map2(growSkin(fire)(mempty22))(v1.bones.value0));
+        }
+        ;
+        if (v1.bones instanceof Column) {
+          return h3("div")(append2(skn(new Flexbox(Y.value)))(append2(sk("display")("flex"))(sk("flex-direction")("column"))))(map2(growSkin(fire)(mempty22))(v1.bones.value0));
+        }
+        ;
+        throw new Error("Failed pattern match at Plum.View (line 140, column 5 - line 148, column 46): " + [v1.bones.constructor.name]);
+      };
+    };
+  };
+  var grow = function(fire) {
+    return function(v) {
+      return growSkin(fire)(mempty22)(v);
     };
   };
 
@@ -1407,6 +1828,7 @@
 
   // output/Plum/index.js
   var bind2 = /* @__PURE__ */ bind(bindEffect);
+  var outerStyle = "html,body{height:100%;padding:0;margin:0;}";
   var run3 = function(id) {
     return function(plum2) {
       return function __do() {
@@ -1421,13 +1843,19 @@
           var projector = createProjector();
           return replace(projector)(v.value0)(function __do2() {
             var model = read(modelRef)();
-            return unView(plum2.view(model))(function(msg) {
+            var el = grow(function(msg) {
               return function __do3() {
                 var m = read(modelRef)();
                 var m_ = plum2.update(msg)(m)();
                 return write(m_)(modelRef)();
               };
-            });
+            })(plum2.view(model));
+            return h2("div")({
+              styles: {
+                height: "100%",
+                width: "100%"
+              }
+            })([el, h2("style")({})([string(outerStyle)])]);
           })();
         }
         ;
@@ -1435,22 +1863,20 @@
           return unit;
         }
         ;
-        throw new Error("Failed pattern match at Plum (line 24, column 92 - line 36, column 25): " + [v.constructor.name]);
+        throw new Error("Failed pattern match at Plum (line 25, column 92 - line 39, column 25): " + [v.constructor.name]);
       };
     };
   };
 
   // output/Main/index.js
   var pure2 = /* @__PURE__ */ pure(applicativeEffect);
+  var map4 = /* @__PURE__ */ map(functorArray);
   var plum = {
     init: /* @__PURE__ */ pure2({
       text: "Test"
     }),
     view: function(model) {
-      return row([spacing(16)])([s(model.text), button([])({
-        onPress: unit,
-        view: s("Button")
-      })]);
+      return view([])([Wrapped.value])(new Column(map4($$const(view([])([])(new Text("hello"))))(range2(1)(100))));
     },
     update: function(msg) {
       return function(model) {

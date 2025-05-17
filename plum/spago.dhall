@@ -10,6 +10,7 @@
   , "prelude"
   , "refs"
   , "strings-extra"
+  , "tuples"
   , "typelevel-prelude"
   , "unsafe-coerce"
   , "untagged-union"
