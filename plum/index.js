@@ -1,4 +1,31 @@
 (() => {
+  // output/Control.Semigroupoid/index.js
+  var semigroupoidFn = {
+    compose: function(f) {
+      return function(g) {
+        return function(x) {
+          return f(g(x));
+        };
+      };
+    }
+  };
+
+  // output/Control.Category/index.js
+  var identity = function(dict) {
+    return dict.identity;
+  };
+  var categoryFn = {
+    identity: function(x) {
+      return x;
+    },
+    Semigroupoid0: function() {
+      return semigroupoidFn;
+    }
+  };
+
+  // output/Data.Boolean/index.js
+  var otherwise = true;
+
   // output/Data.Function/index.js
   var flip = function(f) {
     return function(b) {
@@ -145,17 +172,101 @@
   };
 
   // output/Data.Bounded/foreign.js
+  var topInt = 2147483647;
+  var bottomInt = -2147483648;
   var topChar = String.fromCharCode(65535);
   var bottomChar = String.fromCharCode(0);
   var topNumber = Number.POSITIVE_INFINITY;
   var bottomNumber = Number.NEGATIVE_INFINITY;
 
+  // output/Data.Ord/foreign.js
+  var unsafeCompareImpl = function(lt) {
+    return function(eq2) {
+      return function(gt) {
+        return function(x) {
+          return function(y) {
+            return x < y ? lt : x === y ? eq2 : gt;
+          };
+        };
+      };
+    };
+  };
+  var ordIntImpl = unsafeCompareImpl;
+
+  // output/Data.Eq/foreign.js
+  var refEq = function(r1) {
+    return function(r2) {
+      return r1 === r2;
+    };
+  };
+  var eqIntImpl = refEq;
+
+  // output/Data.Eq/index.js
+  var eqInt = {
+    eq: eqIntImpl
+  };
+
+  // output/Data.Ordering/index.js
+  var LT = /* @__PURE__ */ function() {
+    function LT2() {
+    }
+    ;
+    LT2.value = new LT2();
+    return LT2;
+  }();
+  var GT = /* @__PURE__ */ function() {
+    function GT2() {
+    }
+    ;
+    GT2.value = new GT2();
+    return GT2;
+  }();
+  var EQ = /* @__PURE__ */ function() {
+    function EQ2() {
+    }
+    ;
+    EQ2.value = new EQ2();
+    return EQ2;
+  }();
+
+  // output/Data.Ord/index.js
+  var ordInt = /* @__PURE__ */ function() {
+    return {
+      compare: ordIntImpl(LT.value)(EQ.value)(GT.value),
+      Eq0: function() {
+        return eqInt;
+      }
+    };
+  }();
+
+  // output/Data.Bounded/index.js
+  var top = function(dict) {
+    return dict.top;
+  };
+  var boundedInt = {
+    top: topInt,
+    bottom: bottomInt,
+    Ord0: function() {
+      return ordInt;
+    }
+  };
+  var bottom = function(dict) {
+    return dict.bottom;
+  };
+
   // output/Data.Show/foreign.js
   var showIntImpl = function(n) {
     return n.toString();
   };
+  var showNumberImpl = function(n) {
+    var str = n.toString();
+    return isNaN(str + ".0") ? str : str + ".0";
+  };
 
   // output/Data.Show/index.js
+  var showNumber = {
+    show: showNumberImpl
+  };
   var showInt = {
     show: showIntImpl
   };
@@ -164,6 +275,7 @@
   };
 
   // output/Data.Maybe/index.js
+  var identity2 = /* @__PURE__ */ identity(categoryFn);
   var Nothing = /* @__PURE__ */ function() {
     function Nothing2() {
     }
@@ -181,6 +293,24 @@
     };
     return Just2;
   }();
+  var maybe = function(v) {
+    return function(v1) {
+      return function(v2) {
+        if (v2 instanceof Nothing) {
+          return v;
+        }
+        ;
+        if (v2 instanceof Just) {
+          return v1(v2.value0);
+        }
+        ;
+        throw new Error("Failed pattern match at Data.Maybe (line 237, column 1 - line 237, column 51): " + [v.constructor.name, v1.constructor.name, v2.constructor.name]);
+      };
+    };
+  };
+  var fromMaybe = function(a) {
+    return maybe(a)(identity2);
+  };
 
   // output/Data.Monoid/index.js
   var monoidArray = {
@@ -1202,9 +1332,9 @@
   }
   function replace(projector) {
     return function(el) {
-      return function(render) {
+      return function(render3) {
         return function() {
-          projector.replace(el, render);
+          projector.replace(el, render3);
         };
       };
     };
@@ -1213,6 +1343,51 @@
   // output/Maquette/index.js
   var string = unsafeCoerce2;
   var h2 = _h;
+
+  // output/Data.Int/foreign.js
+  var fromNumberImpl = function(just) {
+    return function(nothing) {
+      return function(n) {
+        return (n | 0) === n ? just(n) : nothing;
+      };
+    };
+  };
+  var toNumber = function(n) {
+    return n;
+  };
+
+  // output/Data.Number/foreign.js
+  var isFiniteImpl = isFinite;
+  var round = Math.round;
+
+  // output/Data.Int/index.js
+  var top2 = /* @__PURE__ */ top(boundedInt);
+  var bottom2 = /* @__PURE__ */ bottom(boundedInt);
+  var fromNumber = /* @__PURE__ */ function() {
+    return fromNumberImpl(Just.create)(Nothing.value);
+  }();
+  var unsafeClamp = function(x) {
+    if (!isFiniteImpl(x)) {
+      return 0;
+    }
+    ;
+    if (x >= toNumber(top2)) {
+      return top2;
+    }
+    ;
+    if (x <= toNumber(bottom2)) {
+      return bottom2;
+    }
+    ;
+    if (otherwise) {
+      return fromMaybe(0)(fromNumber(x));
+    }
+    ;
+    throw new Error("Failed pattern match at Data.Int (line 72, column 1 - line 72, column 29): " + [x.constructor.name]);
+  };
+  var round2 = function($37) {
+    return unsafeClamp(round($37));
+  };
 
   // output/Foreign.Object/foreign.js
   function _copyST(m) {
@@ -1321,8 +1496,28 @@
     });
   };
 
+  // output/Record.Unsafe.Union/foreign.js
+  function unsafeUnionFn(r1, r2) {
+    var copy = {};
+    for (var k1 in r2) {
+      if ({}.hasOwnProperty.call(r2, k1)) {
+        copy[k1] = r2[k1];
+      }
+    }
+    for (var k2 in r1) {
+      if ({}.hasOwnProperty.call(r1, k2)) {
+        copy[k2] = r1[k2];
+      }
+    }
+    return copy;
+  }
+
+  // output/Record.Unsafe.Union/index.js
+  var unsafeUnion = /* @__PURE__ */ runFn2(unsafeUnionFn);
+
   // output/Plum.View/index.js
   var show2 = /* @__PURE__ */ show(showInt);
+  var show1 = /* @__PURE__ */ show(showNumber);
   var append1 = /* @__PURE__ */ append(semigroupArray);
   var mempty2 = /* @__PURE__ */ mempty(monoidArray);
   var map2 = /* @__PURE__ */ map(functorArray);
@@ -1349,6 +1544,32 @@
     ;
     Fit2.value = new Fit2();
     return Fit2;
+  }();
+  var Max2 = /* @__PURE__ */ function() {
+    function Max3(value0, value1) {
+      this.value0 = value0;
+      this.value1 = value1;
+    }
+    ;
+    Max3.create = function(value0) {
+      return function(value1) {
+        return new Max3(value0, value1);
+      };
+    };
+    return Max3;
+  }();
+  var Min2 = /* @__PURE__ */ function() {
+    function Min3(value0, value1) {
+      this.value0 = value0;
+      this.value1 = value1;
+    }
+    ;
+    Min3.create = function(value0) {
+      return function(value1) {
+        return new Min3(value0, value1);
+      };
+    };
+    return Min3;
   }();
   var X = /* @__PURE__ */ function() {
     function X2() {
@@ -1476,6 +1697,70 @@
     Wrapped2.value = new Wrapped2();
     return Wrapped2;
   }();
+  var BackgroundColor = /* @__PURE__ */ function() {
+    function BackgroundColor2(value0) {
+      this.value0 = value0;
+    }
+    ;
+    BackgroundColor2.create = function(value0) {
+      return new BackgroundColor2(value0);
+    };
+    return BackgroundColor2;
+  }();
+  var Padding = /* @__PURE__ */ function() {
+    function Padding2(value0) {
+      this.value0 = value0;
+    }
+    ;
+    Padding2.create = function(value0) {
+      return new Padding2(value0);
+    };
+    return Padding2;
+  }();
+  var Spread = /* @__PURE__ */ function() {
+    function Spread2() {
+    }
+    ;
+    Spread2.value = new Spread2();
+    return Spread2;
+  }();
+  var Opacity = /* @__PURE__ */ function() {
+    function Opacity2(value0) {
+      this.value0 = value0;
+    }
+    ;
+    Opacity2.create = function(value0) {
+      return new Opacity2(value0);
+    };
+    return Opacity2;
+  }();
+  var Pointer = /* @__PURE__ */ function() {
+    function Pointer2() {
+    }
+    ;
+    Pointer2.value = new Pointer2();
+    return Pointer2;
+  }();
+  var Move = /* @__PURE__ */ function() {
+    function Move2(value0) {
+      this.value0 = value0;
+    }
+    ;
+    Move2.create = function(value0) {
+      return new Move2(value0);
+    };
+    return Move2;
+  }();
+  var Clip = /* @__PURE__ */ function() {
+    function Clip2(value0) {
+      this.value0 = value0;
+    }
+    ;
+    Clip2.create = function(value0) {
+      return new Clip2(value0);
+    };
+    return Clip2;
+  }();
   var Column = /* @__PURE__ */ function() {
     function Column2(value0) {
       this.value0 = value0;
@@ -1526,6 +1811,38 @@
     };
     return Text2;
   }();
+  var Link = /* @__PURE__ */ function() {
+    function Link2(value0, value1, value22) {
+      this.value0 = value0;
+      this.value1 = value1;
+      this.value2 = value22;
+    }
+    ;
+    Link2.create = function(value0) {
+      return function(value1) {
+        return function(value22) {
+          return new Link2(value0, value1, value22);
+        };
+      };
+    };
+    return Link2;
+  }();
+  var Download = /* @__PURE__ */ function() {
+    function Download2(value0, value1, value22) {
+      this.value0 = value0;
+      this.value1 = value1;
+      this.value2 = value22;
+    }
+    ;
+    Download2.create = function(value0) {
+      return function(value1) {
+        return function(value22) {
+          return new Download2(value0, value1, value22);
+        };
+      };
+    };
+    return Download2;
+  }();
   var semigroupSkin = {
     append: function(v) {
       return function(v1) {
@@ -1541,6 +1858,11 @@
           extraSkin: append2(v.extraSkin)(v1.extraSkin)
         };
       };
+    }
+  };
+  var renderableColor = {
+    render: function(v) {
+      return "rgba(" + (show2(v.r) + ("," + (show2(v.g) + ("," + (show2(v.b) + ("," + (show1(v.a) + ")")))))));
     }
   };
   var monoidSkin = {
@@ -1576,21 +1898,48 @@
       return singleton2(key)(val);
     };
   };
-  var length2 = function(v) {
-    if (v instanceof Px) {
-      return show2(v.value0) + "px";
-    }
-    ;
-    if (v instanceof Fit) {
-      return "fit-content";
-    }
-    ;
-    if (v instanceof Fill) {
-      return "100%";
-    }
-    ;
-    throw new Error("Failed pattern match at Plum.View (line 99, column 10 - line 102, column 17): " + [v.constructor.name]);
+  var rgb = function(r) {
+    return function(g) {
+      return function(b) {
+        return {
+          r: round2(r * 255),
+          g: round2(g * 255),
+          b: round2(b * 255),
+          a: 1
+        };
+      };
+    };
   };
+  var render = function(dict) {
+    return dict.render;
+  };
+  var render1 = /* @__PURE__ */ render(renderableColor);
+  var renderableLength = {
+    render: function(v) {
+      if (v instanceof Px) {
+        return show2(v.value0) + "px";
+      }
+      ;
+      if (v instanceof Fit) {
+        return "fit-content";
+      }
+      ;
+      if (v instanceof Fill) {
+        return "100%";
+      }
+      ;
+      if (v instanceof Max2) {
+        return "max(" + (show2(v.value0) + ("px," + (render(renderableLength)(v.value1) + ")")));
+      }
+      ;
+      if (v instanceof Min2) {
+        return "min(" + (show2(v.value0) + ("px," + (render(renderableLength)(v.value1) + ")")));
+      }
+      ;
+      throw new Error("Failed pattern match at Plum.View (line 131, column 12 - line 136, column 62): " + [v.constructor.name]);
+    }
+  };
+  var render2 = /* @__PURE__ */ render(renderableLength);
   var skin = function(ctx) {
     return function(v) {
       if (v instanceof Spacing) {
@@ -1620,7 +1969,7 @@
               return "align-items";
             }
             ;
-            throw new Error("Failed pattern match at Plum.View (line 70, column 9 - line 72, column 29): " + [v.value0.constructor.name]);
+            throw new Error("Failed pattern match at Plum.View (line 88, column 9 - line 90, column 29): " + [v.value0.constructor.name]);
           }())(function() {
             if (v.value1 instanceof Start) {
               return "start";
@@ -1634,7 +1983,7 @@
               return "end";
             }
             ;
-            throw new Error("Failed pattern match at Plum.View (line 74, column 9 - line 77, column 23): " + [v.value1.constructor.name]);
+            throw new Error("Failed pattern match at Plum.View (line 92, column 9 - line 95, column 23): " + [v.value1.constructor.name]);
           }());
         }
         ;
@@ -1657,7 +2006,7 @@
               return "justify-content";
             }
             ;
-            throw new Error("Failed pattern match at Plum.View (line 81, column 9 - line 85, column 38): " + [v1.constructor.name]);
+            throw new Error("Failed pattern match at Plum.View (line 99, column 9 - line 103, column 38): " + [v1.constructor.name]);
           }())(function() {
             if (v.value1 instanceof Start) {
               return "flex-start";
@@ -1671,19 +2020,19 @@
               return "flex-end";
             }
             ;
-            throw new Error("Failed pattern match at Plum.View (line 87, column 9 - line 90, column 28): " + [v.value1.constructor.name]);
+            throw new Error("Failed pattern match at Plum.View (line 105, column 9 - line 108, column 28): " + [v.value1.constructor.name]);
           }());
         }
         ;
-        throw new Error("Failed pattern match at Plum.View (line 66, column 26 - line 91, column 8): " + [ctx.constructor.name]);
+        throw new Error("Failed pattern match at Plum.View (line 84, column 26 - line 109, column 8): " + [ctx.constructor.name]);
       }
       ;
       if (v instanceof Width) {
-        return sk("width")(length2(v.value0));
+        return sk("width")(render2(v.value0));
       }
       ;
       if (v instanceof Height) {
-        return sk("height")(length2(v.value0));
+        return sk("height")(render2(v.value0));
       }
       ;
       if (v instanceof Wrapped) {
@@ -1694,7 +2043,54 @@
         return mempty1;
       }
       ;
-      throw new Error("Failed pattern match at Plum.View (line 63, column 12 - line 96, column 16): " + [v.constructor.name]);
+      if (v instanceof BackgroundColor) {
+        return sk("background-color")(render1(v.value0));
+      }
+      ;
+      if (v instanceof Padding) {
+        return sk("padding")(show2(v.value0.top) + ("px " + (show2(v.value0.right) + ("px " + (show2(v.value0.bottom) + ("px " + (show2(v.value0.left) + "px")))))));
+      }
+      ;
+      if (v instanceof Spread) {
+        if (ctx instanceof Flexbox) {
+          return sk("justify-content")("space-between");
+        }
+        ;
+        return mempty1;
+      }
+      ;
+      if (v instanceof Opacity) {
+        return sk("opacity")(show1(v.value0));
+      }
+      ;
+      if (v instanceof Pointer) {
+        return sk("cursor")("pointer");
+      }
+      ;
+      if (v instanceof Move) {
+        return sk("transform")("translate(" + (show2(v.value0.x) + ("px, " + (show2(v.value0.y) + ")"))));
+      }
+      ;
+      if (v instanceof Clip && v.value0 instanceof X) {
+        return sk("overflow-x")("hidden");
+      }
+      ;
+      if (v instanceof Clip && v.value0 instanceof Y) {
+        return sk("overflow-y")("hidden");
+      }
+      ;
+      throw new Error("Failed pattern match at Plum.View (line 81, column 12 - line 125, column 37): " + [v.constructor.name]);
+    };
+  };
+  var hWith = function(el) {
+    return function(props) {
+      return function(v) {
+        return function(children) {
+          return h2(el)(unsafeUnion(props)({
+            styles: v
+          }))(children);
+        };
+      };
     };
   };
   var h3 = function(el) {
@@ -1729,7 +2125,7 @@
               return widthFill;
             }
             ;
-            throw new Error("Failed pattern match at Plum.View (line 128, column 16 - line 132, column 35): " + [ctx.constructor.name]);
+            throw new Error("Failed pattern match at Plum.View (line 181, column 16 - line 185, column 35): " + [ctx.constructor.name]);
           }())(function() {
             if (ctx instanceof Grid) {
               return alignCenter;
@@ -1747,7 +2143,7 @@
               return alignCenter;
             }
             ;
-            throw new Error("Failed pattern match at Plum.View (line 133, column 16 - line 137, column 37): " + [ctx.constructor.name]);
+            throw new Error("Failed pattern match at Plum.View (line 186, column 16 - line 190, column 37): " + [ctx.constructor.name]);
           }()))))(v.extraSkin);
         };
         if (v1.bones instanceof Text) {
@@ -1772,7 +2168,28 @@
           return h3("div")(append2(skn(new Flexbox(Y.value)))(append2(sk("display")("flex"))(sk("flex-direction")("column"))))(map2(growSkin(fire)(mempty22))(v1.bones.value0));
         }
         ;
-        throw new Error("Failed pattern match at Plum.View (line 140, column 5 - line 148, column 46): " + [v1.bones.constructor.name]);
+        if (v1.bones instanceof Link) {
+          return hWith("a")({
+            href: v1.bones.value0,
+            rel: "noopener noreferrer",
+            target: function() {
+              if (v1.bones.value1.newTab) {
+                return "_blank";
+              }
+              ;
+              return "_self";
+            }()
+          })(append2(skn(new Flexbox(X.value)))(append2(sk("display")("flex"))(sk("flex-direction")("row"))))([growSkin(fire)(mempty22)(v1.bones.value2)]);
+        }
+        ;
+        if (v1.bones instanceof Download) {
+          return hWith("a")({
+            href: v1.bones.value0,
+            download: fromMaybe("")(v1.bones.value1.filename)
+          })(append2(skn(new Flexbox(X.value)))(append2(sk("display")("flex"))(sk("flex-direction")("row"))))([growSkin(fire)(mempty22)(v1.bones.value2)]);
+        }
+        ;
+        throw new Error("Failed pattern match at Plum.View (line 193, column 5 - line 215, column 39): " + [v1.bones.constructor.name]);
       };
     };
   };
@@ -1855,7 +2272,7 @@
                 height: "100%",
                 width: "100%"
               }
-            })([el, h2("style")({})([string(outerStyle)])]);
+            })([h2("style")({})([string(outerStyle)]), el]);
           })();
         }
         ;
@@ -1876,7 +2293,9 @@
       text: "Test"
     }),
     view: function(model) {
-      return view([])([Wrapped.value])(new Column(map4($$const(view([])([])(new Text("hello"))))(range2(1)(100))));
+      return view([])([])(new Column([view([])([])(new Link("https://iko.soy", {
+        newTab: false
+      }, view([])([])(new Text("my website")))), view([])([])(new Row(map4($$const(view([])([new BackgroundColor(rgb(1)(0)(0))])(new Text("hello"))))(range2(1)(100))))]));
     },
     update: function(msg) {
       return function(model) {

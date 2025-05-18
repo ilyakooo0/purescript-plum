@@ -8,22 +8,35 @@ module Plum.View
   , Direction(..)
   , Alignment(..)
   , Length(..)
+  , Color(..)
+  , rgb255
+  , rgba255
+  , rgb
+  , rgba
   ) where
 
 import Prelude
 
 import Data.Array as Array
+import Data.Int as Int
+import Data.Maybe (Maybe)
+import Data.Maybe as Maybe
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Foreign.Object (Object)
 import Foreign.Object as Object
 import Maquette (VNode, string)
 import Maquette as Maquette
+import Record as Record
+import Record.Unsafe.Union as Record
 
 h :: String -> Skin -> Array VNode -> VNode
 h el (Skin styles) children = Maquette.h el { styles } children
 
-data Length = Px Int | Fill | Fit
+hWith :: forall props. String -> Record props -> Skin -> Array VNode -> VNode
+hWith el props (Skin styles) children = Maquette.h el (Record.unsafeUnion props { styles }) children
+
+data Length = Px Int | Fill | Fit | Max Int Length | Min Int Length
 
 data Alignment = Start | Center | End
 
@@ -36,6 +49,13 @@ data Meat
   | Width Length
   | Height Length
   | Wrapped
+  | BackgroundColor Color
+  | Padding { top :: Int, right :: Int, bottom :: Int, left :: Int }
+  | Spread
+  | Opacity Number
+  | Pointer
+  | Move { x :: Int, y :: Int }
+  | Clip Direction
 
 data Nerve msg = OnClick msg
 
@@ -87,17 +107,50 @@ skin ctx = case _ of
           Center -> "center"
           End -> "flex-end"
       )
-  Width l -> sk "width" (length l)
-  Height l -> sk "height" (length l)
+  Width l -> sk "width" (render l)
+  Height l -> sk "height" (render l)
   Wrapped -> case ctx of
     Flexbox _ -> sk "flex-wrap" "wrap"
     _ -> mempty
+  BackgroundColor color -> sk "background-color" (render color)
+  Padding { top, right, bottom, left } ->
+    sk "padding" (show top <> "px " <> show right <> "px " <> show bottom <> "px " <> show left <> "px")
+  Spread -> case ctx of
+    Flexbox _ -> sk "justify-content" "space-between"
+    _ -> mempty
+  Opacity o -> sk "opacity" (show o)
+  Pointer -> sk "cursor" "pointer"
+  Move { x, y } -> sk "transform" ("translate(" <> show x <> "px, " <> show y <> ")")
+  Clip X -> sk "overflow-x" "hidden"
+  Clip Y -> sk "overflow-y" "hidden"
 
-length :: Length -> String
-length = case _ of
-  Px px -> show px <> "px"
-  Fit -> "fit-content"
-  Fill -> "100%"
+class Renderable x where
+  render :: x -> String
+
+instance Renderable Length where
+  render = case _ of
+    Px px -> show px <> "px"
+    Fit -> "fit-content"
+    Fill -> "100%"
+    Max px l -> "max(" <> show px <> "px," <> render l <> ")"
+    Min px l -> "min(" <> show px <> "px," <> render l <> ")"
+
+newtype Color = Color { r :: Int, g :: Int, b :: Int, a :: Number }
+
+rgb255 :: Int -> Int -> Int -> Color
+rgb255 r g b = Color { r, g, b, a: 1.0 }
+
+rgba255 :: Int -> Int -> Int -> Number -> Color
+rgba255 r g b a = Color { r, g, b, a }
+
+rgb :: Number -> Number -> Number -> Color
+rgb r g b = Color { r: Int.round (r * 255.0), g: Int.round (g * 255.0), b: Int.round (b * 255.0), a: 1.0 }
+
+rgba :: Number -> Number -> Number -> Number -> Color
+rgba r g b a = Color { r: Int.round (r * 255.0), g: Int.round (g * 255.0), b: Int.round (b * 255.0), a }
+
+instance Renderable Color where
+  render (Color { r, g, b, a }) = "rgba(" <> show r <> "," <> show g <> "," <> show b <> "," <> show a <> ")"
 
 data Bones :: Type -> Type
 data Bones msg
@@ -106,6 +159,9 @@ data Bones msg
   | Stack (Array (View msg))
   | Wrapper (View msg)
   | Text String
+  | Link String { newTab :: Boolean } (View msg)
+  | Download String { filename :: Maybe String } (View msg)
+  | Image String { description :: String }
 
 newtype Mutation = Mutation { extraSkin :: Skin }
 
@@ -144,6 +200,21 @@ growSkin fire (Mutation mutation) { meat, bones } =
         (map (growSkin fire mempty) children)
       Column children -> h "div" (skn (Flexbox Y) <> sk "display" "flex" <> sk "flex-direction" "column")
         (map (growSkin fire mempty) children)
+      Link href { newTab } child -> hWith "a"
+        { href
+        , rel: "noopener noreferrer"
+        , target: if newTab then "_blank" else "_self"
+        }
+        (skn (Flexbox X) <> sk "display" "flex" <> sk "flex-direction" "row")
+        [ growSkin fire mempty child ]
+
+      Download href { filename } child -> hWith "a"
+        { href
+        , download: Maybe.fromMaybe "" filename
+        }
+        (skn (Flexbox X) <> sk "display" "flex" <> sk "flex-direction" "row")
+        [ growSkin fire mempty child ]
+      Image src { description } -> hWith "img" { src, alt: description } (skn Generic) []
 
 grow :: forall msg. (msg -> Effect Unit) -> View msg -> VNode
 grow fire v = growSkin fire mempty v

@@ -35,7 +35,7 @@ run id plum = do
                 Ref.write m_ modelRef
             )
             (plum.view model)
-        pure $ Maquette.h "div" { styles: { height: "100%", width: "100%" } } [ el, Maquette.h "style" {} [ Maquette.string outerStyle ] ]
+        pure $ Maquette.h "div" { styles: { height: "100%", width: "100%" } } [ Maquette.h "style" {} [ Maquette.string outerStyle ], el ]
     Nothing -> pure unit
 
 outerStyle :: String
