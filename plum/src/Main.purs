@@ -18,7 +18,9 @@ plum =
   { init: pure { text: "Test" }
   , view: \model -> do
       column $ do
-        text "hi" mempty
+        text "hi" $ do
+          onHover $ do
+            bgColor $ rgb 1.0 0.0 0.0
         text "hello" mempty
   , update: \msg model -> case msg of
       _ -> pure { text: "Button pressed" }

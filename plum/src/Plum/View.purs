@@ -2,6 +2,7 @@ module Plum.View
   ( View
   , Nerve(..)
   , Meat(..)
+  , Side(..)
   , Bones(..)
   , grow
   , Direction(..)
@@ -27,6 +28,19 @@ module Plum.View
   , image
   , spacing
   , explain
+  , align
+  , width
+  , height
+  , wrapped
+  , bgColor
+  , padding
+  , spread
+  , opacity
+  , pointer
+  , move
+  , clip
+  , onHover
+  , onMouseDown
   ) where
 
 import Prelude
@@ -37,6 +51,7 @@ import Data.Int as Int
 import Data.Maybe (Maybe(..))
 import Data.Maybe as Maybe
 import Data.Traversable (traverse)
+import Data.TraversableWithIndex (traverseWithIndex)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Foreign.Object (Object)
@@ -44,7 +59,6 @@ import Foreign.Object as Object
 import Maquette (VNode, string)
 import Maquette as Maquette
 import Record.Unsafe.Union as Record
-import Web.HTML (ClassName)
 
 type GenericUIView children msg =
   { nerves :: Array (Nerve msg)
@@ -189,6 +203,45 @@ spacing { x, y } = m $ Spacing x y
 explain :: forall ch msg a. Monoid ch => Monoid a => GenericUI ch msg a
 explain = m Explain
 
+align :: forall ch msg a. Monoid ch => Monoid a => Direction -> Alignment -> GenericUI ch msg a
+align dir al = m $ Align dir al
+
+width :: forall ch msg a. Monoid ch => Monoid a => Length -> GenericUI ch msg a
+width l = m $ Width l
+
+height :: forall ch msg a. Monoid ch => Monoid a => Length -> GenericUI ch msg a
+height l = m $ Height l
+
+wrapped :: forall ch msg a. Monoid ch => Monoid a => GenericUI ch msg a
+wrapped = m Wrapped
+
+bgColor :: forall ch msg a. Monoid ch => Monoid a => Color -> GenericUI ch msg a
+bgColor c = m $ BackgroundColor c
+
+padding :: forall ch msg a. Monoid ch => Monoid a => Side -> Int -> GenericUI ch msg a
+padding s l = m $ Padding s l
+
+spread :: forall ch msg a. Monoid ch => Monoid a => GenericUI ch msg a
+spread = m Spread
+
+opacity :: forall ch msg a. Monoid ch => Monoid a => Number -> GenericUI ch msg a
+opacity o = m $ Opacity o
+
+pointer :: forall ch msg a. Monoid ch => Monoid a => GenericUI ch msg a
+pointer = m Pointer
+
+move :: forall ch msg a. Monoid ch => Monoid a => { x :: Int, y :: Int } -> GenericUI ch msg a
+move a = m $ Move a
+
+clip :: forall ch msg a. Monoid ch => Monoid a => Direction -> GenericUI ch msg a
+clip dir = m $ Clip dir
+
+onHover :: forall ch msg a. Monoid ch => Monoid a => GenericUI Unit msg a -> GenericUI ch msg a
+onHover (UI { meat } a) = UI (mempty :: GenericUIView ch msg) { hover = meat } a
+
+onMouseDown :: forall ch msg a. Monoid ch => Monoid a => GenericUI Unit msg a -> GenericUI ch msg a
+onMouseDown (UI { meat } a) = UI (mempty :: GenericUIView ch msg) { down = meat } a
+
 data Meat
   = Spacing Int Int
   | Explain
@@ -197,12 +250,26 @@ data Meat
   | Height Length
   | Wrapped
   | BackgroundColor Color
-  | Padding { top :: Int, right :: Int, bottom :: Int, left :: Int }
+  | Padding Side Int
   | Spread
   | Opacity Number
   | Pointer
   | Move { x :: Int, y :: Int }
   | Clip Direction
+
+data Side = Top | Right | Bottom | Left
+
+instance Renderable Side where
+  render = case _ of
+    Top -> "top"
+    Right -> "right"
+    Bottom -> "bottom"
+    Left -> "left"
+  renderKey = case _ of
+    Top -> "top"
+    Right -> "right"
+    Bottom -> "bottom"
+    Left -> "left"
 
 data Nerve msg = OnClick msg
 
@@ -268,16 +335,16 @@ skin ctx = case _ of
       in
         sk ("align-flexbox-" <> k <> "-" <> v) k v
   Width l -> sk ("width-" <> renderKey l) "width" (render l)
-  Height l -> sk ("width-" <> renderKey l) "height" (render l)
+  Height l -> sk ("height-" <> renderKey l) "height" (render l)
   Wrapped -> case ctx of
     Flexbox _ -> sk "wrapped" "flex-wrap" "wrap"
     _ -> pure []
   BackgroundColor color -> sk ("bg-color-" <> renderKey color) "background-color" (render color)
-  Padding { top, right, bottom, left } ->
+  Padding side l ->
     sk
-      ("padding-" <> show top <> "-" <> show right <> "-" <> show bottom <> "-" <> show left)
-      "padding"
-      (show top <> "px " <> show right <> "px " <> show bottom <> "px " <> show left <> "px")
+      ("padding-" <> renderKey side <> "-" <> show l)
+      ("padding-" <> render side)
+      (show l <> "px")
   Spread -> case ctx of
     Flexbox _ -> sk "spread" "justify-content" "space-between"
     _ -> pure []
@@ -305,22 +372,22 @@ instance Renderable Length where
     Max px l -> "max-" <> show px <> "-" <> renderKey l
     Min px l -> "min-" <> show px <> "-" <> renderKey l
 
-newtype Color = Color { r :: Int, g :: Int, b :: Int, a :: Number }
+newtype Color = Color { r :: Int, g :: Int, b :: Int, a :: Int }
 
 rgb255 :: Int -> Int -> Int -> Color
-rgb255 r g b = Color { r, g, b, a: 1.0 }
+rgb255 r g b = Color { r, g, b, a: 100 }
 
-rgba255 :: Int -> Int -> Int -> Number -> Color
+rgba255 :: Int -> Int -> Int -> Int -> Color
 rgba255 r g b a = Color { r, g, b, a }
 
 rgb :: Number -> Number -> Number -> Color
-rgb r g b = Color { r: Int.round (r * 255.0), g: Int.round (g * 255.0), b: Int.round (b * 255.0), a: 1.0 }
+rgb r g b = Color { r: Int.round (r * 255.0), g: Int.round (g * 255.0), b: Int.round (b * 255.0), a: 100 }
 
 rgba :: Number -> Number -> Number -> Number -> Color
-rgba r g b a = Color { r: Int.round (r * 255.0), g: Int.round (g * 255.0), b: Int.round (b * 255.0), a }
+rgba r g b a = Color { r: Int.round (r * 255.0), g: Int.round (g * 255.0), b: Int.round (b * 255.0), a: Int.round (a * 100.0) }
 
 instance Renderable Color where
-  render (Color { r, g, b, a }) = "rgba(" <> show r <> "," <> show g <> "," <> show b <> "," <> show a <> ")"
+  render (Color { r, g, b, a }) = "rgb(" <> show r <> "," <> show g <> "," <> show b <> "," <> show a <> "%)"
   renderKey (Color { r, g, b, a }) = show r <> "-" <> show g <> "-" <> show b <> "-" <> show a
 
 data Bones :: Type -> Type
@@ -362,8 +429,8 @@ growSkin fire (Mutation mutation) ({ meat, hover, down, nerves } /\ bones) = do
   let
     alignCenter = [ Align X Center, Align Y Center ]
     widthFill = [ Width Fill, Height Fill ]
-    skn ctx =
-      ((_ <> mutation.extraSkin) <<< Array.concat) <$> traverse (skin ctx)
+    skn ctx = do
+      meatClasses <- ((_ <> mutation.extraSkin) <<< Array.concat) <$> traverse (skin ctx)
         ( meat
             <> case ctx of
               Span -> mempty
@@ -376,6 +443,12 @@ growSkin fire (Mutation mutation) ({ meat, hover, down, nerves } /\ bones) = do
               Span -> mempty
               Generic -> alignCenter
         )
+      let hoverClasses /\ (SkinGrowth hover') = runWriter $ traverse (skin ctx) hover
+      _ <- traverseWithIndex (\key val -> tell $ SkinGrowth $ Object.singleton (key <> "-hover:hover") val) hover'
+      let downClasses /\ (SkinGrowth down') = runWriter $ traverse (skin ctx) down
+      _ <- traverseWithIndex (\key val -> tell $ SkinGrowth $ Object.singleton (key <> "-down:active") val) down'
+
+      pure $ meatClasses <> map (_ <> "-hover") (Array.concat hoverClasses) <> map (_ <> "-down") (Array.concat downClasses)
 
   case bones of
     Text t -> (\c -> h "span" c [ string t ]) <$> (skn Span)
