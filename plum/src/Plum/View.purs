@@ -14,8 +14,8 @@ module Plum.View
   , rgb
   , rgba
   , UI
-  , UIWith(..)
-  , UIViewWith
+  , GenericUI(..)
+  , GenericUIView
   , column
   , row
   , stack
@@ -45,37 +45,37 @@ import Maquette as Maquette
 import Record as Record
 import Record.Unsafe.Union as Record
 
-type UIViewWith children msg = { nerves :: Array (Nerve msg), meat :: Array Meat, children :: children }
+type GenericUIView children msg = { nerves :: Array (Nerve msg), meat :: Array Meat, children :: children }
 
-type UIView msg = UIViewWith (Array (View msg)) msg
+type UIView msg = GenericUIView (Array (View msg)) msg
 
-data UIWith children msg a = UI (UIViewWith children msg) a
+data GenericUI children msg a = UI (GenericUIView children msg) a
 
-instance (Semigroup children, Semigroup a) => Semigroup (UIWith children msg a) where
+instance (Semigroup children, Semigroup a) => Semigroup (GenericUI children msg a) where
   append (UI v a) (UI v' a') = UI (v <> v') (a <> a')
 
-instance (Monoid children, Monoid a) => Monoid (UIWith children msg a) where
+instance (Monoid children, Monoid a) => Monoid (GenericUI children msg a) where
   mempty = UI mempty mempty
 
-type UI msg a = UIWith (Array (View msg)) msg a
+type UI msg a = GenericUI (Array (View msg)) msg a
 
-instance Functor (UIWith children msg) where
+instance Functor (GenericUI children msg) where
   map f (UI v a) = UI v $ f a
 
-instance Monoid children => Apply (UIWith children msg) where
+instance Monoid children => Apply (GenericUI children msg) where
   apply (UI views f) (UI views' a) = UI (views <> views') (f a)
 
-instance Monoid children => Applicative (UIWith children msg) where
+instance Monoid children => Applicative (GenericUI children msg) where
   pure = UI mempty
 
-instance Monoid children => Bind (UIWith children msg) where
+instance Monoid children => Bind (GenericUI children msg) where
   bind (UI views a) f =
     let
       UI views' b = f a
     in
       UI (views <> views') b
 
-instance Monoid children => Monad (UIWith children msg)
+instance Monoid children => Monad (GenericUI children msg)
 
 column :: forall msg a. UI msg a -> UI msg a
 column (UI { nerves, meat, children } a) =
@@ -89,7 +89,7 @@ stack :: forall msg a. UI msg a -> UI msg a
 stack (UI { nerves, meat, children } a) =
   UI (mempty :: UIView msg) { children = [ { meat, nerves, bones: Stack children } ] } a
 
-text :: forall msg. String -> UIWith Unit msg Unit -> UI msg Unit
+text :: forall msg. String -> GenericUI Unit msg Unit -> UI msg Unit
 text s (UI { nerves, meat } a) = UI (mempty :: UIView msg) { children = [ { meat, nerves, bones: Text s } ] } a
 
 link :: forall msg a. String -> UI msg a -> UI msg a
@@ -152,7 +152,7 @@ downloadAs url { filename } (UI { nerves, meat, children } a) = UI
     }
   a
 
-image :: forall msg a. String -> { description :: String } -> UIWith Unit msg a -> UI msg a
+image :: forall msg a. String -> { description :: String } -> GenericUI Unit msg a -> UI msg a
 image url description (UI { nerves, meat } a) =
   UI (mempty :: UIView msg) { children = [ { meat, nerves, bones: Image url description } ] } a
 
@@ -168,13 +168,13 @@ data Alignment = Start | Center | End
 
 data Direction = X | Y
 
-meat :: forall ch msg a. Monoid ch => Monoid a => Meat -> UIWith ch msg a
-meat m = UI (mempty :: UIViewWith ch msg) { meat = [ m ] } mempty
+meat :: forall ch msg a. Monoid ch => Monoid a => Meat -> GenericUI ch msg a
+meat m = UI (mempty :: GenericUIView ch msg) { meat = [ m ] } mempty
 
-spacing :: forall ch msg a. Monoid ch => Monoid a => { x :: Int, y :: Int } -> UIWith ch msg a
+spacing :: forall ch msg a. Monoid ch => Monoid a => { x :: Int, y :: Int } -> GenericUI ch msg a
 spacing { x, y } = meat $ Spacing x y
 
-explain :: forall ch msg a. Monoid ch => Monoid a => UIWith ch msg a
+explain :: forall ch msg a. Monoid ch => Monoid a => GenericUI ch msg a
 explain = meat Explain
 
 data Meat
