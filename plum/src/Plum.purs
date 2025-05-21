@@ -7,7 +7,7 @@ import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Ref as Ref
 import Maquette as Maquette
-import Plum.View (UI, UIWith(..), grow)
+import Plum.View (GenericUI(..), UI, grow)
 import Web.DOM.NonElementParentNode (getElementById) as Web
 import Web.HTML (window) as Web
 import Web.HTML.HTMLDocument (toNonElementParentNode) as Web

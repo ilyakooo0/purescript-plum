@@ -1,6 +1,5 @@
 module Plum.View
   ( View
-  , view
   , Nerve(..)
   , Meat(..)
   , Bones(..)
@@ -36,16 +35,21 @@ import Data.Array as Array
 import Data.Int as Int
 import Data.Maybe (Maybe(..))
 import Data.Maybe as Maybe
-import Data.Tuple.Nested ((/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Foreign.Object (Object)
 import Foreign.Object as Object
 import Maquette (VNode, string)
 import Maquette as Maquette
-import Record as Record
 import Record.Unsafe.Union as Record
 
-type GenericUIView children msg = { nerves :: Array (Nerve msg), meat :: Array Meat, children :: children }
+type GenericUIView children msg =
+  { nerves :: Array (Nerve msg)
+  , meat :: Array Meat
+  , hover :: Array Meat
+  , down :: Array Meat
+  , children :: children
+  }
 
 type UIView msg = GenericUIView (Array (View msg)) msg
 
@@ -78,83 +82,88 @@ instance Monoid children => Bind (GenericUI children msg) where
 instance Monoid children => Monad (GenericUI children msg)
 
 column :: forall msg a. UI msg a -> UI msg a
-column (UI { nerves, meat, children } a) =
-  UI (mempty :: UIView msg) { children = [ { meat, nerves, bones: Column children } ] } a
+column (UI { nerves, meat, hover, down, children } a) =
+  UI (mempty :: UIView msg) { children = [ { meat, nerves, hover, down } /\ Column children ] } a
 
 row :: forall msg a. UI msg a -> UI msg a
-row (UI { nerves, meat, children } a) =
-  UI (mempty :: UIView msg) { children = [ { meat, nerves, bones: Row children } ] } a
+row (UI { nerves, meat, hover, down, children } a) =
+  UI (mempty :: UIView msg) { children = [ { meat, nerves, hover, down } /\ Row children ] } a
 
 stack :: forall msg a. UI msg a -> UI msg a
-stack (UI { nerves, meat, children } a) =
-  UI (mempty :: UIView msg) { children = [ { meat, nerves, bones: Stack children } ] } a
+stack (UI { nerves, meat, hover, down, children } a) =
+  UI (mempty :: UIView msg) { children = [ { meat, nerves, hover, down } /\ Stack children ] } a
 
 text :: forall msg. String -> GenericUI Unit msg Unit -> UI msg Unit
-text s (UI { nerves, meat } a) = UI (mempty :: UIView msg) { children = [ { meat, nerves, bones: Text s } ] } a
+text s (UI { nerves, meat, hover, down } a) = UI (mempty :: UIView msg) { children = [ { meat, nerves, hover, down } /\ Text s ] } a
 
 link :: forall msg a. String -> UI msg a -> UI msg a
-link url (UI { nerves, meat, children } a) = UI
+link url (UI { nerves, meat, hover, down, children } a) = UI
   (mempty :: UIView msg)
     { children =
         [ { meat
           , nerves
-          , bones: Link url { newTab: false } (Maybe.fromMaybe none $ Array.head children)
-          }
+          , hover
+          , down
+          } /\ Link url { newTab: false } (Maybe.fromMaybe none $ Array.head children)
         ]
     }
   a
 
 el :: forall msg a. UI msg a -> UI msg a
-el (UI { nerves, meat, children } a) = UI
+el (UI { nerves, meat, down, hover, children } a) = UI
   (mempty :: UIView msg)
     { children =
         [ { meat
           , nerves
-          , bones: Wrapper (Maybe.fromMaybe none $ Array.head children)
-          }
+          , hover
+          , down
+          } /\ Wrapper (Maybe.fromMaybe none $ Array.head children)
         ]
     }
   a
 
 newTabLink :: forall msg a. String -> UI msg a -> UI msg a
-newTabLink url (UI { nerves, meat, children } a) = UI
+newTabLink url (UI { nerves, meat, hover, down, children } a) = UI
   (mempty :: UIView msg)
     { children =
         [ { meat
           , nerves
-          , bones: Link url { newTab: true } (Maybe.fromMaybe none $ Array.head children)
-          }
+          , hover
+          , down
+          } /\ Link url { newTab: true } (Maybe.fromMaybe none $ Array.head children)
         ]
     }
   a
 
 download :: forall msg a. String -> UI msg a -> UI msg a
-download url (UI { nerves, meat, children } a) = UI
+download url (UI { nerves, meat, children, down, hover } a) = UI
   (mempty :: UIView msg)
     { children =
         [ { meat
           , nerves
-          , bones: Download url { filename: Nothing } (Maybe.fromMaybe none $ Array.head children)
-          }
+          , down
+          , hover
+          } /\ Download url { filename: Nothing } (Maybe.fromMaybe none $ Array.head children)
         ]
     }
   a
 
 downloadAs :: forall msg a. String -> { filename :: String } -> UI msg a -> UI msg a
-downloadAs url { filename } (UI { nerves, meat, children } a) = UI
+downloadAs url { filename } (UI { nerves, meat, hover, down, children } a) = UI
   (mempty :: UIView msg)
     { children =
         [ { meat
           , nerves
-          , bones: Download url { filename: Just filename } (Maybe.fromMaybe none $ Array.head children)
-          }
+          , hover
+          , down
+          } /\ Download url { filename: Just filename } (Maybe.fromMaybe none $ Array.head children)
         ]
     }
   a
 
 image :: forall msg a. String -> { description :: String } -> GenericUI Unit msg a -> UI msg a
-image url description (UI { nerves, meat } a) =
-  UI (mempty :: UIView msg) { children = [ { meat, nerves, bones: Image url description } ] } a
+image url description (UI { nerves, meat, hover, down } a) =
+  UI (mempty :: UIView msg) { children = [ { meat, nerves, hover, down } /\ Image url description ] } a
 
 h :: String -> Skin -> Array VNode -> VNode
 h elem (Skin styles) children = Maquette.h elem { styles } children
@@ -168,14 +177,14 @@ data Alignment = Start | Center | End
 
 data Direction = X | Y
 
-meat :: forall ch msg a. Monoid ch => Monoid a => Meat -> GenericUI ch msg a
-meat m = UI (mempty :: GenericUIView ch msg) { meat = [ m ] } mempty
+m :: forall ch msg a. Monoid ch => Monoid a => Meat -> GenericUI ch msg a
+m meat = UI (mempty :: GenericUIView ch msg) { meat = [ meat ] } mempty
 
 spacing :: forall ch msg a. Monoid ch => Monoid a => { x :: Int, y :: Int } -> GenericUI ch msg a
-spacing { x, y } = meat $ Spacing x y
+spacing { x, y } = m $ Spacing x y
 
 explain :: forall ch msg a. Monoid ch => Monoid a => GenericUI ch msg a
-explain = meat Explain
+explain = m Explain
 
 data Meat
   = Spacing Int Int
@@ -194,13 +203,10 @@ data Meat
 
 data Nerve msg = OnClick msg
 
-type View msg = { nerves :: Array (Nerve msg), meat :: Array Meat, bones :: Bones msg }
+type View msg = { nerves :: Array (Nerve msg), meat :: Array Meat, hover :: Array Meat, down :: Array Meat } /\ Bones msg
 
 none :: forall msg. View msg
-none = { nerves: [], meat: [], bones: None }
-
-view :: forall msg. Array (Nerve msg) -> Array Meat -> Bones msg -> View msg
-view nerves meat bones = { nerves, meat, bones }
+none = mempty /\ None
 
 newtype Skin = Skin (Object String)
 
@@ -311,7 +317,7 @@ instance Monoid Mutation where
   mempty = Mutation { extraSkin: mempty }
 
 growSkin :: forall msg. (msg -> Effect Unit) -> Mutation -> View msg -> VNode
-growSkin fire (Mutation mutation) { meat, bones } =
+growSkin fire (Mutation mutation) ({ meat, hover, down, nerves } /\ bones) =
   let
     alignCenter = [ Align X Center, Align Y Center ]
     widthFill = [ Width Fill, Height Fill ]
