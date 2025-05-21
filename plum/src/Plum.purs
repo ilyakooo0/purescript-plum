@@ -3,6 +3,7 @@ module Plum (Plum, run) where
 import Prelude
 
 import Data.Array ((:))
+import Data.Array as Array
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Ref as Ref
@@ -27,21 +28,29 @@ run id plum = do
       projector <- Maquette.createProjector
       Maquette.replace projector element do
         model <- Ref.read modelRef
-        let
-          el = map
-            ( grow
-                ( \msg -> do
-                    m <- Ref.read modelRef
-                    m_ <- plum.update msg m
-                    Ref.write m_ modelRef
-                    Maquette.scheduleRender projector
-                )
-            )
-            (let UI { children } _ = plum.view model in children)
-        pure $ Maquette.h
-          "div"
-          { styles: { height: "100%", width: "100%" } }
-          (Maquette.h "style" {} [ Maquette.string outerStyle ] : el)
+
+        ( let
+            UI { children } _ = plum.view model
+          in
+            pure $ case Array.head children of
+              Nothing -> Maquette.h "div" {} []
+              Just child ->
+                let
+                  { node, style } =
+                    ( grow
+                        ( \msg -> do
+                            m <- Ref.read modelRef
+                            m_ <- plum.update msg m
+                            Ref.write m_ modelRef
+                            Maquette.scheduleRender projector
+                        )
+                    ) child
+                in
+                  Maquette.h
+                    "div"
+                    { styles: { height: "100%", width: "100%" } }
+                    [ Maquette.h "style" {} [ Maquette.string (outerStyle <> style) ], node ]
+        )
     Nothing -> pure unit
 
 outerStyle :: String

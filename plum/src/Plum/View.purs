@@ -31,10 +31,12 @@ module Plum.View
 
 import Prelude
 
+import Control.Monad.Writer (Writer, runWriter, tell)
 import Data.Array as Array
 import Data.Int as Int
 import Data.Maybe (Maybe(..))
 import Data.Maybe as Maybe
+import Data.Traversable (traverse)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Foreign.Object (Object)
@@ -42,6 +44,7 @@ import Foreign.Object as Object
 import Maquette (VNode, string)
 import Maquette as Maquette
 import Record.Unsafe.Union as Record
+import Web.HTML (ClassName)
 
 type GenericUIView children msg =
   { nerves :: Array (Nerve msg)
@@ -165,11 +168,11 @@ image :: forall msg a. String -> { description :: String } -> GenericUI Unit msg
 image url description (UI { nerves, meat, hover, down } a) =
   UI (mempty :: UIView msg) { children = [ { meat, nerves, hover, down } /\ Image url description ] } a
 
-h :: String -> Skin -> Array VNode -> VNode
-h elem (Skin styles) children = Maquette.h elem { styles } children
+h :: String -> Classes -> Array VNode -> VNode
+h elem classes children = Maquette.h elem { class: Array.intercalate " " classes } children
 
-hWith :: forall props. String -> Record props -> Skin -> Array VNode -> VNode
-hWith elem props (Skin styles) children = Maquette.h elem (Record.unsafeUnion props { styles }) children
+hWith :: forall props. String -> Record props -> Classes -> Array VNode -> VNode
+hWith elem props classes children = Maquette.h elem (Record.unsafeUnion props { class: Array.intercalate " " classes }) children
 
 data Length = Px Int | Fill | Fit | Max Int Length | Min Int Length
 
@@ -210,8 +213,10 @@ none = mempty /\ None
 
 newtype Skin = Skin (Object String)
 
-sk :: String -> String -> Skin
-sk key val = Skin $ Object.singleton key val
+sk :: String -> String -> String -> Writer SkinGrowth Classes
+sk cName key value = do
+  tell $ SkinGrowth $ Object.singleton cName { key, value }
+  pure [ cName ]
 
 instance Semigroup Skin where
   append (Skin x) (Skin y) = Skin $ Object.union x y
@@ -221,55 +226,70 @@ instance Monoid Skin where
 
 data Context = Grid | Flexbox Direction | Generic | Span
 
-skin :: Context -> Meat -> Skin
+skin :: Context -> Meat -> Writer SkinGrowth Classes
 skin ctx = case _ of
-  Spacing x y -> sk "gap" (show x <> "px " <> show y <> "px")
-  Explain -> sk "border" "dashed magenta"
+  Spacing x y -> sk ("spacing-" <> show x <> "-" <> show y) "gap" (show x <> "px " <> show y <> "px")
+  Explain -> sk "explain" "border" "dashed magenta"
   Align dir alignment -> case ctx of
     Generic -> mempty
     Span -> mempty
-    Grid -> sk
-      ( case dir of
-          X -> "justify-items"
-          Y -> "align-items"
-      )
-      ( case alignment of
-          Start -> "start"
-          Center -> "center"
-          End -> "end"
-      )
+    Grid ->
+      let
+        k =
+          ( case dir of
+              X -> "justify-items"
+              Y -> "align-items"
+          )
+        v =
+          ( case alignment of
+              Start -> "start"
+              Center -> "center"
+              End -> "end"
+          )
+      in
+        sk ("align-grid-" <> k <> "-" <> v) k v
 
-    Flexbox flexDir -> sk
-      ( case flexDir /\ dir of
-          X /\ X -> "justify-content"
-          X /\ Y -> "align-items"
-          Y /\ X -> "align-items"
-          Y /\ Y -> "justify-content"
-      )
-      ( case alignment of
-          Start -> "flex-start"
-          Center -> "center"
-          End -> "flex-end"
-      )
-  Width l -> sk "width" (render l)
-  Height l -> sk "height" (render l)
+    Flexbox flexDir ->
+      let
+        k =
+          ( case flexDir /\ dir of
+              X /\ X -> "justify-content"
+              X /\ Y -> "align-items"
+              Y /\ X -> "align-items"
+              Y /\ Y -> "justify-content"
+          )
+
+        v =
+          ( case alignment of
+              Start -> "flex-start"
+              Center -> "center"
+              End -> "flex-end"
+          )
+      in
+        sk ("align-flexbox-" <> k <> "-" <> v) k v
+  Width l -> sk ("width-" <> renderKey l) "width" (render l)
+  Height l -> sk ("width-" <> renderKey l) "height" (render l)
   Wrapped -> case ctx of
-    Flexbox _ -> sk "flex-wrap" "wrap"
-    _ -> mempty
-  BackgroundColor color -> sk "background-color" (render color)
+    Flexbox _ -> sk "wrapped" "flex-wrap" "wrap"
+    _ -> pure []
+  BackgroundColor color -> sk ("bg-color-" <> renderKey color) "background-color" (render color)
   Padding { top, right, bottom, left } ->
-    sk "padding" (show top <> "px " <> show right <> "px " <> show bottom <> "px " <> show left <> "px")
+    sk
+      ("padding-" <> show top <> "-" <> show right <> "-" <> show bottom <> "-" <> show left)
+      "padding"
+      (show top <> "px " <> show right <> "px " <> show bottom <> "px " <> show left <> "px")
   Spread -> case ctx of
-    Flexbox _ -> sk "justify-content" "space-between"
-    _ -> mempty
-  Opacity o -> sk "opacity" (show o)
-  Pointer -> sk "cursor" "pointer"
-  Move { x, y } -> sk "transform" ("translate(" <> show x <> "px, " <> show y <> ")")
-  Clip X -> sk "overflow-x" "hidden"
-  Clip Y -> sk "overflow-y" "hidden"
+    Flexbox _ -> sk "spread" "justify-content" "space-between"
+    _ -> pure []
+  Opacity o -> sk ("opacity-" <> show o) "opacity" (show o)
+  Pointer -> sk "pointer" "cursor" "pointer"
+  Move { x, y } -> sk ("move-" <> show x <> "-" <> show y) "transform" ("translate(" <> show x <> "px, " <> show y <> "px)")
+  Clip X -> sk "clip-x" "overflow-x" "hidden"
+  Clip Y -> sk "clip-y" "overflow-y" "hidden"
 
 class Renderable x where
   render :: x -> String
+  renderKey :: x -> String
 
 instance Renderable Length where
   render = case _ of
@@ -278,6 +298,12 @@ instance Renderable Length where
     Fill -> "100%"
     Max px l -> "max(" <> show px <> "px," <> render l <> ")"
     Min px l -> "min(" <> show px <> "px," <> render l <> ")"
+  renderKey = case _ of
+    Px px -> show px
+    Fit -> "fit-content"
+    Fill -> "fill"
+    Max px l -> "max-" <> show px <> "-" <> renderKey l
+    Min px l -> "min-" <> show px <> "-" <> renderKey l
 
 newtype Color = Color { r :: Int, g :: Int, b :: Int, a :: Number }
 
@@ -295,6 +321,7 @@ rgba r g b a = Color { r: Int.round (r * 255.0), g: Int.round (g * 255.0), b: In
 
 instance Renderable Color where
   render (Color { r, g, b, a }) = "rgba(" <> show r <> "," <> show g <> "," <> show b <> "," <> show a <> ")"
+  renderKey (Color { r, g, b, a }) = show r <> "-" <> show g <> "-" <> show b <> "-" <> show a
 
 data Bones :: Type -> Type
 data Bones msg
@@ -308,7 +335,9 @@ data Bones msg
   | Image String { description :: String }
   | None
 
-newtype Mutation = Mutation { extraSkin :: Skin }
+type Classes = Array String
+
+newtype Mutation = Mutation { extraSkin :: Classes }
 
 instance Semigroup Mutation where
   append (Mutation x) (Mutation y) = Mutation { extraSkin: x.extraSkin <> y.extraSkin }
@@ -316,13 +345,25 @@ instance Semigroup Mutation where
 instance Monoid Mutation where
   mempty = Mutation { extraSkin: mempty }
 
-growSkin :: forall msg. (msg -> Effect Unit) -> Mutation -> View msg -> VNode
-growSkin fire (Mutation mutation) ({ meat, hover, down, nerves } /\ bones) =
+newtype SkinGrowth = SkinGrowth (Object { key :: String, value :: String })
+
+styleSkinGrowth :: SkinGrowth -> String
+styleSkinGrowth (SkinGrowth o) =
+  Object.foldMap (\className { key, value } -> "." <> className <> "{" <> key <> ":" <> value <> ";}") o
+
+instance Semigroup SkinGrowth where
+  append (SkinGrowth x) (SkinGrowth y) = SkinGrowth $ Object.union x y
+
+instance Monoid SkinGrowth where
+  mempty = SkinGrowth Object.empty
+
+growSkin :: forall msg. (msg -> Effect Unit) -> Mutation -> View msg -> Writer SkinGrowth VNode
+growSkin fire (Mutation mutation) ({ meat, hover, down, nerves } /\ bones) = do
   let
     alignCenter = [ Align X Center, Align Y Center ]
     widthFill = [ Width Fill, Height Fill ]
     skn ctx =
-      Array.foldMap (skin ctx)
+      ((_ <> mutation.extraSkin) <<< Array.concat) <$> traverse (skin ctx)
         ( meat
             <> case ctx of
               Span -> mempty
@@ -334,33 +375,54 @@ growSkin fire (Mutation mutation) ({ meat, hover, down, nerves } /\ bones) =
               Flexbox _ -> alignCenter
               Span -> mempty
               Generic -> alignCenter
-        ) <> mutation.extraSkin
-  in
-    case bones of
-      Text t -> h "span" (skn Span) [ string t ]
-      Wrapper x -> h "div" (skn (Flexbox X) <> sk "display" "flex" <> sk "flex-direction" "row") [ growSkin fire mempty x ]
-      Stack children -> h "div" (skn Grid <> sk "display" "grid")
-        (map (growSkin fire $ Mutation { extraSkin: sk "grid-row" "1" <> sk "grid-column" "1" }) children)
-      Row children -> h "div" (skn (Flexbox X) <> sk "display" "flex" <> sk "flex-direction" "row")
-        (map (growSkin fire mempty) children)
-      Column children -> h "div" (skn (Flexbox Y) <> sk "display" "flex" <> sk "flex-direction" "column")
-        (map (growSkin fire mempty) children)
-      Link href { newTab } child -> hWith "a"
+        )
+
+  case bones of
+    Text t -> (\c -> h "span" c [ string t ]) <$> (skn Span)
+    Wrapper x -> do
+      classes <- (skn (Flexbox X) <> sk "display-flex" "display" "flex" <> sk "flex-direction-row" "flex-direction" "row")
+      x' <- growSkin fire mempty x
+      pure $ h "div" classes [ x' ]
+    Stack children -> do
+      classes <- (skn Grid <> sk "display-grid" "display" "grid")
+      extraSkin <- sk "grid-row-1" "grid-row" "1" <> sk "grid-column-1" "grid-column" "1"
+      children' <- (traverse (growSkin fire $ Mutation { extraSkin }) children)
+      pure $ h "div" classes children'
+
+    Row children -> do
+      classes <- (skn (Flexbox X) <> sk "display-flex" "display" "flex" <> sk "flex-direction-row" "flex-direction" "row")
+      children' <- traverse (growSkin fire mempty) children
+      pure $ h "div" classes children'
+    Column children -> do
+      classes <- (skn (Flexbox Y) <> sk "display-flex" "display" "flex" <> sk "flex-direction-column" "flex-direction" "column")
+      children' <- traverse (growSkin fire mempty) children
+      pure $ h "div" classes children'
+    Link href { newTab } child -> do
+      classes <- (skn (Flexbox X) <> sk "display-flex" "display" "flex" <> sk "flex-direction-row" "flex-direction" "row")
+      child' <- growSkin fire mempty child
+      pure $ hWith "a"
         { href
         , rel: "noopener noreferrer"
         , target: if newTab then "_blank" else "_self"
         }
-        (skn (Flexbox X) <> sk "display" "flex" <> sk "flex-direction" "row")
-        [ growSkin fire mempty child ]
+        classes
+        [ child' ]
 
-      Download href { filename } child -> hWith "a"
+    Download href { filename } child -> do
+      classes <- (skn (Flexbox X) <> sk "display-flex" "display" "flex" <> sk "flex-direction-row" "flex-direction" "row")
+      child' <- growSkin fire mempty child
+      pure $ hWith "a"
         { href
         , download: Maybe.fromMaybe "" filename
         }
-        (skn (Flexbox X) <> sk "display" "flex" <> sk "flex-direction" "row")
-        [ growSkin fire mempty child ]
-      Image src { description } -> hWith "img" { src, alt: description } (skn Generic) []
-      None -> h "div" mempty []
+        classes
+        [ child' ]
+    Image src { description } -> (\c -> hWith "img" { src, alt: description } c []) <$> (skn Generic)
+    None -> pure $ h "div" mempty []
 
-grow :: forall msg. (msg -> Effect Unit) -> View msg -> VNode
-grow fire v = growSkin fire mempty v
+grow :: forall msg. (msg -> Effect Unit) -> View msg -> { node :: VNode, style :: String }
+grow fire v =
+  let
+    node /\ skinGrowth = runWriter (growSkin fire mempty v)
+  in
+    { node, style: styleSkinGrowth skinGrowth }
