@@ -2,12 +2,12 @@ module Plum (Plum, run) where
 
 import Prelude
 
+import Data.Array ((:))
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Ref as Ref
-import Maquette (h)
 import Maquette as Maquette
-import Plum.View (View, grow)
+import Plum.View (UI, UIWith(..), grow)
 import Web.DOM.NonElementParentNode (getElementById) as Web
 import Web.HTML (window) as Web
 import Web.HTML.HTMLDocument (toNonElementParentNode) as Web
@@ -16,7 +16,7 @@ import Web.HTML.Window (document) as Web
 type Plum msg model =
   { init :: Effect model
   , update :: msg -> model -> Effect model
-  , view :: model -> View msg
+  , view :: model -> UI msg Unit
   }
 
 run :: forall msg model. String -> Plum msg model -> Effect Unit
@@ -28,14 +28,20 @@ run id plum = do
       Maquette.replace projector element do
         model <- Ref.read modelRef
         let
-          el = grow
-            ( \msg -> do
-                m <- Ref.read modelRef
-                m_ <- plum.update msg m
-                Ref.write m_ modelRef
+          el = map
+            ( grow
+                ( \msg -> do
+                    m <- Ref.read modelRef
+                    m_ <- plum.update msg m
+                    Ref.write m_ modelRef
+                    Maquette.scheduleRender projector
+                )
             )
-            (plum.view model)
-        pure $ Maquette.h "div" { styles: { height: "100%", width: "100%" } } [ Maquette.h "style" {} [ Maquette.string outerStyle ], el ]
+            (let UI { children } _ = plum.view model in children)
+        pure $ Maquette.h
+          "div"
+          { styles: { height: "100%", width: "100%" } }
+          (Maquette.h "style" {} [ Maquette.string outerStyle ] : el)
     Nothing -> pure unit
 
 outerStyle :: String
