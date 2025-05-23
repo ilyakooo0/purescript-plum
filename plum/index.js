@@ -774,7 +774,7 @@
     var foldl2 = foldl(dictFoldable);
     return function(dictMonoid) {
       var append3 = append(dictMonoid.Semigroup0());
-      var mempty5 = mempty(dictMonoid);
+      var mempty6 = mempty(dictMonoid);
       return function(sep) {
         return function(xs) {
           var go2 = function(v) {
@@ -794,7 +794,7 @@
           };
           return foldl2(go2)({
             init: true,
-            acc: mempty5
+            acc: mempty6
           })(xs).acc;
         };
       };
@@ -804,13 +804,13 @@
     var foldr22 = foldr(dictFoldable);
     return function(dictMonoid) {
       var append3 = append(dictMonoid.Semigroup0());
-      var mempty5 = mempty(dictMonoid);
+      var mempty6 = mempty(dictMonoid);
       return function(f) {
         return foldr22(function(x) {
           return function(acc) {
             return append3(f(x))(acc);
           };
-        })(mempty5);
+        })(mempty6);
       };
     };
   };
@@ -1803,14 +1803,14 @@
     };
   };
   var applicativeWriterT = function(dictMonoid) {
-    var mempty5 = mempty(dictMonoid);
+    var mempty6 = mempty(dictMonoid);
     var applyWriterT1 = applyWriterT(dictMonoid.Semigroup0());
     return function(dictApplicative) {
       var pure4 = pure(dictApplicative);
       var applyWriterT2 = applyWriterT1(dictApplicative.Apply0());
       return {
         pure: function(a) {
-          return pure4(new Tuple(a, mempty5));
+          return pure4(new Tuple(a, mempty6));
         },
         Apply0: function() {
           return applyWriterT2;
@@ -2086,7 +2086,7 @@
   var fold2 = /* @__PURE__ */ _foldM(applyFlipped);
   var foldMap2 = function(dictMonoid) {
     var append1 = append(dictMonoid.Semigroup0());
-    var mempty5 = mempty(dictMonoid);
+    var mempty6 = mempty(dictMonoid);
     return function(f) {
       return fold2(function(acc) {
         return function(k) {
@@ -2094,7 +2094,7 @@
             return append1(acc)(f(k)(v));
           };
         };
-      })(mempty5);
+      })(mempty6);
     };
   };
   var foldableObject = {
@@ -2239,6 +2239,7 @@
   var mempty1 = /* @__PURE__ */ mempty(/* @__PURE__ */ monoidRecord2(/* @__PURE__ */ monoidRecordCons2(monoidArray)()(monoidRecordCons1)));
   var foldMap3 = /* @__PURE__ */ foldMap2(monoidString);
   var show1 = /* @__PURE__ */ show(showNumber);
+  var mempty22 = /* @__PURE__ */ mempty(monoidUnit);
   var intercalate3 = /* @__PURE__ */ intercalate2(monoidString);
   var map2 = /* @__PURE__ */ map(/* @__PURE__ */ functorWriterT(functorIdentity));
   var map1 = /* @__PURE__ */ map(functorArray);
@@ -2718,7 +2719,7 @@
   var tell2 = /* @__PURE__ */ tell(/* @__PURE__ */ monadTellWriterT(monoidSkinGrowth)(monadIdentity));
   var applicativeWriterT2 = /* @__PURE__ */ applicativeWriterT(monoidSkinGrowth)(applicativeIdentity);
   var pure2 = /* @__PURE__ */ pure(applicativeWriterT2);
-  var mempty22 = /* @__PURE__ */ mempty(/* @__PURE__ */ monoidWriterT(applicativeIdentity)(monoidSkinGrowth)(monoidArray));
+  var mempty3 = /* @__PURE__ */ mempty(/* @__PURE__ */ monoidWriterT(applicativeIdentity)(monoidSkinGrowth)(monoidArray));
   var traverse2 = /* @__PURE__ */ traverse(traversableArray)(applicativeWriterT2);
   var traverseWithIndex2 = /* @__PURE__ */ traverseWithIndex(traversableWithIndexObject)(applicativeWriterT2);
   var monoidMutation = {
@@ -2729,14 +2730,14 @@
       return semigroupMutation;
     }
   };
-  var mempty3 = /* @__PURE__ */ mempty(monoidMutation);
+  var mempty4 = /* @__PURE__ */ mempty(monoidMutation);
   var monoidGenericUI = function(dictMonoid) {
-    var mempty42 = mempty(monoidRecord2(monoidRecordCons2(dictMonoid)()(monoidRecordCons1)));
+    var mempty52 = mempty(monoidRecord2(monoidRecordCons2(dictMonoid)()(monoidRecordCons1)));
     var semigroupGenericUI1 = semigroupGenericUI(dictMonoid.Semigroup0());
     return function(dictMonoid1) {
       var semigroupGenericUI2 = semigroupGenericUI1(dictMonoid1.Semigroup0());
       return {
-        mempty: new UI(mempty42, mempty(dictMonoid1)),
+        mempty: new UI(mempty52, mempty(dictMonoid1)),
         Semigroup0: function() {
           return semigroupGenericUI2;
         }
@@ -2897,11 +2898,11 @@
       ;
       if (v instanceof Align) {
         if (ctx instanceof Generic) {
-          return mempty22;
+          return mempty3;
         }
         ;
         if (ctx instanceof Span) {
-          return mempty22;
+          return mempty3;
         }
         ;
         if (ctx instanceof Grid) {
@@ -3031,33 +3032,40 @@
       throw new Error("Failed pattern match at Plum.View (line 297, column 12 - line 355, column 46): " + [v.constructor.name]);
     };
   };
+  var onMouseDown = function(dictMonoid) {
+    var mempty52 = mempty(monoidRecord2(monoidRecordCons2(dictMonoid)()(monoidRecordCons1)));
+    return function(v) {
+      return new UI({
+        nerves: mempty52.nerves,
+        meat: mempty52.meat,
+        hover: mempty52.hover,
+        children: mempty52.children,
+        down: v.value0.meat
+      }, v.value1);
+    };
+  };
   var onHover = function(dictMonoid) {
-    var mempty42 = mempty(monoidRecord2(monoidRecordCons2(dictMonoid)()(monoidRecordCons1)));
-    return function(dictMonoid1) {
-      return function(v) {
-        return new UI({
-          nerves: mempty42.nerves,
-          meat: mempty42.meat,
-          down: mempty42.down,
-          children: mempty42.children,
-          hover: v.value0.meat
-        }, v.value1);
-      };
+    var mempty52 = mempty(monoidRecord2(monoidRecordCons2(dictMonoid)()(monoidRecordCons1)));
+    return function(v) {
+      return new UI({
+        nerves: mempty52.nerves,
+        meat: mempty52.meat,
+        down: mempty52.down,
+        children: mempty52.children,
+        hover: v.value0.meat
+      }, v.value1);
     };
   };
   var m = function(dictMonoid) {
-    var mempty42 = mempty(monoidRecord2(monoidRecordCons2(dictMonoid)()(monoidRecordCons1)));
-    return function(dictMonoid1) {
-      var mempty5 = mempty(dictMonoid1);
-      return function(meat) {
-        return new UI({
-          nerves: mempty42.nerves,
-          hover: mempty42.hover,
-          down: mempty42.down,
-          children: mempty42.children,
-          meat: [meat]
-        }, mempty5);
-      };
+    var mempty52 = mempty(monoidRecord2(monoidRecordCons2(dictMonoid)()(monoidRecordCons1)));
+    return function(meat) {
+      return new UI({
+        nerves: mempty52.nerves,
+        hover: mempty52.hover,
+        down: mempty52.down,
+        children: mempty52.children,
+        meat: [meat]
+      }, mempty22);
     };
   };
   var hWith = function(elem2) {
@@ -3086,10 +3094,10 @@
         var widthFill = [new Width(Fill.value), new Height(Fill.value)];
         var alignCenter = [new Align(X.value, Center.value), new Align(Y.value, Center.value)];
         var skn = function(ctx) {
-          return bind2(map2(function($511) {
+          return bind2(map2(function($482) {
             return function(v2) {
               return append2(v2)(v.extraSkin);
-            }(concat($511));
+            }(concat($482));
           })(traverse2(skin(ctx))(append2(v1.value0.meat)(append2(function() {
             if (ctx instanceof Span) {
               return mempty2;
@@ -3156,7 +3164,7 @@
         ;
         if (v1.value1 instanceof Wrapper) {
           return bind2(append22(skn(new Flexbox(X.value)))(append22(sk("display-flex")("display")("flex"))(sk("flex-direction-row")("flex-direction")("row"))))(function(classes) {
-            return bind2(growSkin(fire)(mempty3)(v1.value1.value0))(function(x$prime) {
+            return bind2(growSkin(fire)(mempty4)(v1.value1.value0))(function(x$prime) {
               return pure2(h3("div")(classes)([x$prime]));
             });
           });
@@ -3176,7 +3184,7 @@
         ;
         if (v1.value1 instanceof Row) {
           return bind2(append22(skn(new Flexbox(X.value)))(append22(sk("display-flex")("display")("flex"))(sk("flex-direction-row")("flex-direction")("row"))))(function(classes) {
-            return bind2(traverse2(growSkin(fire)(mempty3))(v1.value1.value0))(function(children$prime) {
+            return bind2(traverse2(growSkin(fire)(mempty4))(v1.value1.value0))(function(children$prime) {
               return pure2(h3("div")(classes)(children$prime));
             });
           });
@@ -3184,7 +3192,7 @@
         ;
         if (v1.value1 instanceof Column) {
           return bind2(append22(skn(new Flexbox(Y.value)))(append22(sk("display-flex")("display")("flex"))(sk("flex-direction-column")("flex-direction")("column"))))(function(classes) {
-            return bind2(traverse2(growSkin(fire)(mempty3))(v1.value1.value0))(function(children$prime) {
+            return bind2(traverse2(growSkin(fire)(mempty4))(v1.value1.value0))(function(children$prime) {
               return pure2(h3("div")(classes)(children$prime));
             });
           });
@@ -3192,7 +3200,7 @@
         ;
         if (v1.value1 instanceof Link) {
           return bind2(append22(skn(new Flexbox(X.value)))(append22(sk("display-flex")("display")("flex"))(sk("flex-direction-row")("flex-direction")("row"))))(function(classes) {
-            return bind2(growSkin(fire)(mempty3)(v1.value1.value2))(function(child$prime) {
+            return bind2(growSkin(fire)(mempty4)(v1.value1.value2))(function(child$prime) {
               return pure2(hWith("a")({
                 href: v1.value1.value0,
                 rel: "noopener noreferrer",
@@ -3210,7 +3218,7 @@
         ;
         if (v1.value1 instanceof Download) {
           return bind2(append22(skn(new Flexbox(X.value)))(append22(sk("display-flex")("display")("flex"))(sk("flex-direction-row")("flex-direction")("row"))))(function(classes) {
-            return bind2(growSkin(fire)(mempty3)(v1.value1.value2))(function(child$prime) {
+            return bind2(growSkin(fire)(mempty4)(v1.value1.value2))(function(child$prime) {
               return pure2(hWith("a")({
                 href: v1.value1.value0,
                 download: fromMaybe("")(v1.value1.value1.filename)
@@ -3238,7 +3246,7 @@
   };
   var grow = function(fire) {
     return function(v) {
-      var v1 = runWriter(growSkin(fire)(mempty3)(v));
+      var v1 = runWriter(growSkin(fire)(mempty4)(v));
       return {
         node: v1.value0,
         style: styleSkinGrowth(v1.value1)
@@ -3261,11 +3269,8 @@
   };
   var bgColor = function(dictMonoid) {
     var m1 = m(dictMonoid);
-    return function(dictMonoid1) {
-      var m2 = m1(dictMonoid1);
-      return function(c) {
-        return m2(new BackgroundColor(c));
-      };
+    return function(c) {
+      return m1(new BackgroundColor(c));
     };
   };
 
@@ -3368,17 +3373,22 @@
 
   // output/Main/index.js
   var pure3 = /* @__PURE__ */ pure(applicativeEffect);
-  var discard3 = /* @__PURE__ */ discard(discardUnit)(/* @__PURE__ */ bindGenericUI(monoidArray));
-  var onHover2 = /* @__PURE__ */ onHover(monoidUnit)(monoidUnit);
-  var bgColor2 = /* @__PURE__ */ bgColor(monoidUnit)(monoidUnit);
-  var mempty4 = /* @__PURE__ */ mempty(/* @__PURE__ */ monoidGenericUI(monoidUnit)(monoidUnit));
+  var discard3 = /* @__PURE__ */ discard(discardUnit);
+  var discard1 = /* @__PURE__ */ discard3(/* @__PURE__ */ bindGenericUI(monoidArray));
+  var discard22 = /* @__PURE__ */ discard3(/* @__PURE__ */ bindGenericUI(monoidUnit));
+  var onHover2 = /* @__PURE__ */ onHover(monoidUnit);
+  var bgColor2 = /* @__PURE__ */ bgColor(monoidUnit);
+  var onMouseDown2 = /* @__PURE__ */ onMouseDown(monoidUnit);
+  var mempty5 = /* @__PURE__ */ mempty(/* @__PURE__ */ monoidGenericUI(monoidUnit)(monoidUnit));
   var plum = {
     init: /* @__PURE__ */ pure3({
       text: "Test"
     }),
     view: function(model) {
-      return column(discard3(text("hi")(onHover2(bgColor2(rgb(1)(0)(0)))))(function() {
-        return text("hello")(mempty4);
+      return column(discard1(text("hi")(discard22(onHover2(bgColor2(rgb(1)(0)(0))))(function() {
+        return onMouseDown2(bgColor2(rgb(0)(1)(0)));
+      })))(function() {
+        return text("hello")(mempty5);
       }));
     },
     update: function(msg) {

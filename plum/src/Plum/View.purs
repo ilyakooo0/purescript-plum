@@ -194,52 +194,52 @@ data Alignment = Start | Center | End
 
 data Direction = X | Y
 
-m :: forall ch msg a. Monoid ch => Monoid a => Meat -> GenericUI ch msg a
+m :: forall ch msg. Monoid ch => Meat -> GenericUI ch msg Unit
 m meat = UI (mempty :: GenericUIView ch msg) { meat = [ meat ] } mempty
 
-spacing :: forall ch msg a. Monoid ch => Monoid a => { x :: Int, y :: Int } -> GenericUI ch msg a
+spacing :: forall ch msg. Monoid ch => { x :: Int, y :: Int } -> GenericUI ch msg Unit
 spacing { x, y } = m $ Spacing x y
 
-explain :: forall ch msg a. Monoid ch => Monoid a => GenericUI ch msg a
+explain :: forall ch msg. Monoid ch => GenericUI ch msg Unit
 explain = m Explain
 
-align :: forall ch msg a. Monoid ch => Monoid a => Direction -> Alignment -> GenericUI ch msg a
+align :: forall ch msg. Monoid ch => Direction -> Alignment -> GenericUI ch msg Unit
 align dir al = m $ Align dir al
 
-width :: forall ch msg a. Monoid ch => Monoid a => Length -> GenericUI ch msg a
+width :: forall ch msg. Monoid ch => Length -> GenericUI ch msg Unit
 width l = m $ Width l
 
-height :: forall ch msg a. Monoid ch => Monoid a => Length -> GenericUI ch msg a
+height :: forall ch msg. Monoid ch => Length -> GenericUI ch msg Unit
 height l = m $ Height l
 
-wrapped :: forall ch msg a. Monoid ch => Monoid a => GenericUI ch msg a
+wrapped :: forall ch msg. Monoid ch => GenericUI ch msg Unit
 wrapped = m Wrapped
 
-bgColor :: forall ch msg a. Monoid ch => Monoid a => Color -> GenericUI ch msg a
+bgColor :: forall ch msg. Monoid ch => Color -> GenericUI ch msg Unit
 bgColor c = m $ BackgroundColor c
 
-padding :: forall ch msg a. Monoid ch => Monoid a => Side -> Int -> GenericUI ch msg a
+padding :: forall ch msg. Monoid ch => Side -> Int -> GenericUI ch msg Unit
 padding s l = m $ Padding s l
 
-spread :: forall ch msg a. Monoid ch => Monoid a => GenericUI ch msg a
+spread :: forall ch msg. Monoid ch => GenericUI ch msg Unit
 spread = m Spread
 
-opacity :: forall ch msg a. Monoid ch => Monoid a => Number -> GenericUI ch msg a
+opacity :: forall ch msg. Monoid ch => Number -> GenericUI ch msg Unit
 opacity o = m $ Opacity o
 
-pointer :: forall ch msg a. Monoid ch => Monoid a => GenericUI ch msg a
+pointer :: forall ch msg. Monoid ch => GenericUI ch msg Unit
 pointer = m Pointer
 
-move :: forall ch msg a. Monoid ch => Monoid a => { x :: Int, y :: Int } -> GenericUI ch msg a
+move :: forall ch msg. Monoid ch => { x :: Int, y :: Int } -> GenericUI ch msg Unit
 move a = m $ Move a
 
-clip :: forall ch msg a. Monoid ch => Monoid a => Direction -> GenericUI ch msg a
+clip :: forall ch msg. Monoid ch => Direction -> GenericUI ch msg Unit
 clip dir = m $ Clip dir
 
-onHover :: forall ch msg a. Monoid ch => Monoid a => GenericUI Unit msg a -> GenericUI ch msg a
+onHover :: forall ch msg. Monoid ch => GenericUI Unit msg Unit -> GenericUI ch msg Unit
 onHover (UI { meat } a) = UI (mempty :: GenericUIView ch msg) { hover = meat } a
 
-onMouseDown :: forall ch msg a. Monoid ch => Monoid a => GenericUI Unit msg a -> GenericUI ch msg a
+onMouseDown :: forall ch msg. Monoid ch => GenericUI Unit msg Unit -> GenericUI ch msg Unit
 onMouseDown (UI { meat } a) = UI (mempty :: GenericUIView ch msg) { down = meat } a
 
 data Meat
