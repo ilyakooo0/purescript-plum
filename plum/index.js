@@ -1983,6 +1983,9 @@
       };
     };
   }
+  function _lookup(no, yes, k, m2) {
+    return k in m2 ? yes(m2[k]) : no;
+  }
   function toArrayWithKey(f) {
     return function(m2) {
       var r = [];
@@ -2082,6 +2085,37 @@
         };
       })(s)(m2);
     });
+  };
+  var unionWith = function(f) {
+    return function(m1) {
+      return function(m2) {
+        return mutate(function(s1) {
+          return foldM1(function(s2) {
+            return function(k) {
+              return function(v1) {
+                return poke2(k)(_lookup(v1, function(v2) {
+                  return f(v1)(v2);
+                }, k, m2))(s2);
+              };
+            };
+          })(s1)(m1);
+        })(m2);
+      };
+    };
+  };
+  var semigroupObject = function(dictSemigroup) {
+    return {
+      append: unionWith(append(dictSemigroup))
+    };
+  };
+  var monoidObject = function(dictSemigroup) {
+    var semigroupObject1 = semigroupObject(dictSemigroup);
+    return {
+      mempty: empty2,
+      Semigroup0: function() {
+        return semigroupObject1;
+      }
+    };
   };
   var fold2 = /* @__PURE__ */ _foldM(applyFlipped);
   var foldMap2 = function(dictMonoid) {
@@ -2232,11 +2266,23 @@
   };
   var semigroupRecordCons2 = /* @__PURE__ */ semigroupRecordCons(childrenIsSymbol)()(/* @__PURE__ */ semigroupRecordCons(downIsSymbol)()(/* @__PURE__ */ semigroupRecordCons(hoverIsSymbol)()(/* @__PURE__ */ semigroupRecordCons(meatIsSymbol)()(/* @__PURE__ */ semigroupRecordCons(nervesIsSymbol)()(semigroupRecordNil)(semigroupArray))(semigroupArray))(semigroupArray))(semigroupArray));
   var show2 = /* @__PURE__ */ show(showInt);
-  var mempty2 = /* @__PURE__ */ mempty(monoidArray);
   var monoidRecord2 = /* @__PURE__ */ monoidRecord();
-  var monoidRecordCons2 = /* @__PURE__ */ monoidRecordCons(childrenIsSymbol);
-  var monoidRecordCons1 = /* @__PURE__ */ monoidRecordCons(downIsSymbol)(monoidArray)()(/* @__PURE__ */ monoidRecordCons(hoverIsSymbol)(monoidArray)()(/* @__PURE__ */ monoidRecordCons(meatIsSymbol)(monoidArray)()(/* @__PURE__ */ monoidRecordCons(nervesIsSymbol)(monoidArray)()(monoidRecordNil))));
-  var mempty1 = /* @__PURE__ */ mempty(/* @__PURE__ */ monoidRecord2(/* @__PURE__ */ monoidRecordCons2(monoidArray)()(monoidRecordCons1)));
+  var monoidRecordCons2 = /* @__PURE__ */ monoidRecordCons(downIsSymbol);
+  var monoidObject2 = /* @__PURE__ */ monoidObject(/* @__PURE__ */ semigroupRecord3(/* @__PURE__ */ semigroupRecordCons({
+    reflectSymbol: function() {
+      return "key";
+    }
+  })()(/* @__PURE__ */ semigroupRecordCons({
+    reflectSymbol: function() {
+      return "value";
+    }
+  })()(semigroupRecordNil)(semigroupString))(semigroupString)));
+  var monoidRecordCons1 = /* @__PURE__ */ monoidRecordCons(hoverIsSymbol);
+  var monoidRecordCons22 = /* @__PURE__ */ monoidRecordCons(meatIsSymbol);
+  var mempty2 = /* @__PURE__ */ mempty(monoidArray);
+  var monoidRecordCons3 = /* @__PURE__ */ monoidRecordCons(childrenIsSymbol);
+  var monoidRecordCons4 = /* @__PURE__ */ monoidRecordCons2(monoidArray)()(/* @__PURE__ */ monoidRecordCons1(monoidArray)()(/* @__PURE__ */ monoidRecordCons22(monoidArray)()(/* @__PURE__ */ monoidRecordCons(nervesIsSymbol)(monoidArray)()(monoidRecordNil))));
+  var mempty1 = /* @__PURE__ */ mempty(/* @__PURE__ */ monoidRecord2(/* @__PURE__ */ monoidRecordCons3(monoidArray)()(monoidRecordCons4)));
   var foldMap3 = /* @__PURE__ */ foldMap2(monoidString);
   var show1 = /* @__PURE__ */ show(showNumber);
   var mempty22 = /* @__PURE__ */ mempty(monoidUnit);
@@ -2632,7 +2678,11 @@
   var semigroupSkinGrowth = {
     append: function(v) {
       return function(v1) {
-        return union(v)(v1);
+        return {
+          meat: union(v.meat)(v1.meat),
+          hover: union(v.hover)(v1.hover),
+          down: union(v.down)(v1.down)
+        };
       };
     }
   };
@@ -2711,7 +2761,7 @@
     }
   };
   var monoidSkinGrowth = {
-    mempty: empty2,
+    mempty: /* @__PURE__ */ mempty(/* @__PURE__ */ monoidRecord2(/* @__PURE__ */ monoidRecordCons2(monoidObject2)()(/* @__PURE__ */ monoidRecordCons1(monoidObject2)()(/* @__PURE__ */ monoidRecordCons22(monoidObject2)()(monoidRecordNil))))),
     Semigroup0: function() {
       return semigroupSkinGrowth;
     }
@@ -2732,7 +2782,7 @@
   };
   var mempty4 = /* @__PURE__ */ mempty(monoidMutation);
   var monoidGenericUI = function(dictMonoid) {
-    var mempty52 = mempty(monoidRecord2(monoidRecordCons2(dictMonoid)()(monoidRecordCons1)));
+    var mempty52 = mempty(monoidRecord2(monoidRecordCons3(dictMonoid)()(monoidRecordCons4)));
     var semigroupGenericUI1 = semigroupGenericUI(dictMonoid.Semigroup0());
     return function(dictMonoid1) {
       var semigroupGenericUI2 = semigroupGenericUI1(dictMonoid1.Semigroup0());
@@ -2800,15 +2850,27 @@
       return function(v1) {
         return "." + (className + ("{" + (v1.key + (":" + (v1.value + ";}")))));
       };
-    })(v);
+    })(v.meat) + (foldMap3(function(className) {
+      return function(v1) {
+        return "." + (className + ("{" + (v1.key + (":" + (v1.value + ";}")))));
+      };
+    })(v.hover) + foldMap3(function(className) {
+      return function(v1) {
+        return "." + (className + ("{" + (v1.key + (":" + (v1.value + ";}")))));
+      };
+    })(v.down));
   };
   var sk = function(cName) {
     return function(key) {
       return function(value12) {
-        return discard2(tell2(singleton2(cName)({
-          key,
-          value: value12
-        })))(function() {
+        return discard2(tell2({
+          meat: singleton2(cName)({
+            key,
+            value: value12
+          }),
+          hover: empty2,
+          down: empty2
+        }))(function() {
           return pure2([cName]);
         });
       };
@@ -3033,7 +3095,7 @@
     };
   };
   var onMouseDown = function(dictMonoid) {
-    var mempty52 = mempty(monoidRecord2(monoidRecordCons2(dictMonoid)()(monoidRecordCons1)));
+    var mempty52 = mempty(monoidRecord2(monoidRecordCons3(dictMonoid)()(monoidRecordCons4)));
     return function(v) {
       return new UI({
         nerves: mempty52.nerves,
@@ -3045,7 +3107,7 @@
     };
   };
   var onHover = function(dictMonoid) {
-    var mempty52 = mempty(monoidRecord2(monoidRecordCons2(dictMonoid)()(monoidRecordCons1)));
+    var mempty52 = mempty(monoidRecord2(monoidRecordCons3(dictMonoid)()(monoidRecordCons4)));
     return function(v) {
       return new UI({
         nerves: mempty52.nerves,
@@ -3057,7 +3119,7 @@
     };
   };
   var m = function(dictMonoid) {
-    var mempty52 = mempty(monoidRecord2(monoidRecordCons2(dictMonoid)()(monoidRecordCons1)));
+    var mempty52 = mempty(monoidRecord2(monoidRecordCons3(dictMonoid)()(monoidRecordCons4)));
     return function(meat) {
       return new UI({
         nerves: mempty52.nerves,
@@ -3094,10 +3156,10 @@
         var widthFill = [new Width(Fill.value), new Height(Fill.value)];
         var alignCenter = [new Align(X.value, Center.value), new Align(Y.value, Center.value)];
         var skn = function(ctx) {
-          return bind2(map2(function($482) {
+          return bind2(map2(function($513) {
             return function(v2) {
               return append2(v2)(v.extraSkin);
-            }(concat($482));
+            }(concat($513));
           })(traverse2(skin(ctx))(append2(v1.value0.meat)(append2(function() {
             if (ctx instanceof Span) {
               return mempty2;
@@ -3115,7 +3177,7 @@
               return widthFill;
             }
             ;
-            throw new Error("Failed pattern match at Plum.View (line 435, column 16 - line 439, column 35): " + [ctx.constructor.name]);
+            throw new Error("Failed pattern match at Plum.View (line 445, column 16 - line 449, column 35): " + [ctx.constructor.name]);
           }())(function() {
             if (ctx instanceof Grid) {
               return alignCenter;
@@ -3133,20 +3195,28 @@
               return alignCenter;
             }
             ;
-            throw new Error("Failed pattern match at Plum.View (line 440, column 16 - line 444, column 37): " + [ctx.constructor.name]);
+            throw new Error("Failed pattern match at Plum.View (line 450, column 16 - line 454, column 37): " + [ctx.constructor.name]);
           }())))))(function(meatClasses) {
             var v2 = runWriter(traverse2(skin(ctx))(v1.value0.hover));
             return bind2(traverseWithIndex2(function(key) {
               return function(val) {
-                return tell2(singleton2(key + "-hover:hover")(val));
+                return tell2({
+                  meat: empty2,
+                  hover: singleton2(key + "-hover:hover")(val),
+                  down: empty2
+                });
               };
-            })(v2.value1))(function() {
+            })(v2.value1.meat))(function() {
               var v3 = runWriter(traverse2(skin(ctx))(v1.value0.down));
               return bind2(traverseWithIndex2(function(key) {
                 return function(val) {
-                  return tell2(singleton2(key + "-down:active")(val));
+                  return tell2({
+                    meat: empty2,
+                    hover: empty2,
+                    down: singleton2(key + "-down:active")(val)
+                  });
                 };
-              })(v3.value1))(function() {
+              })(v3.value1.meat))(function() {
                 return pure2(append2(meatClasses)(append2(map1(function(v4) {
                   return v4 + "-hover";
                 })(concat(v2.value0)))(map1(function(v4) {
@@ -3240,7 +3310,7 @@
           return pure2(h3("div")(mempty2)([]));
         }
         ;
-        throw new Error("Failed pattern match at Plum.View (line 453, column 3 - line 494, column 37): " + [v1.value1.constructor.name]);
+        throw new Error("Failed pattern match at Plum.View (line 477, column 3 - line 518, column 37): " + [v1.value1.constructor.name]);
       };
     };
   };

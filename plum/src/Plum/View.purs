@@ -282,7 +282,7 @@ newtype Skin = Skin (Object String)
 
 sk :: String -> String -> String -> Writer SkinGrowth Classes
 sk cName key value = do
-  tell $ SkinGrowth $ Object.singleton cName { key, value }
+  tell $ SkinGrowth $ { meat: Object.singleton cName { key, value }, hover: Object.empty, down: Object.empty }
   pure [ cName ]
 
 instance Semigroup Skin where
@@ -412,17 +412,27 @@ instance Semigroup Mutation where
 instance Monoid Mutation where
   mempty = Mutation { extraSkin: mempty }
 
-newtype SkinGrowth = SkinGrowth (Object { key :: String, value :: String })
+newtype SkinGrowth = SkinGrowth
+  { meat :: Object { key :: String, value :: String }
+  , hover :: Object { key :: String, value :: String }
+  , down :: Object { key :: String, value :: String }
+  }
 
 styleSkinGrowth :: SkinGrowth -> String
 styleSkinGrowth (SkinGrowth o) =
-  Object.foldMap (\className { key, value } -> "." <> className <> "{" <> key <> ":" <> value <> ";}") o
+  Object.foldMap (\className { key, value } -> "." <> className <> "{" <> key <> ":" <> value <> ";}") o.meat
+    <> Object.foldMap (\className { key, value } -> "." <> className <> "{" <> key <> ":" <> value <> ";}") o.hover
+    <> Object.foldMap (\className { key, value } -> "." <> className <> "{" <> key <> ":" <> value <> ";}") o.down
 
 instance Semigroup SkinGrowth where
-  append (SkinGrowth x) (SkinGrowth y) = SkinGrowth $ Object.union x y
+  append (SkinGrowth x) (SkinGrowth y) = SkinGrowth $
+    { meat: Object.union x.meat y.meat
+    , hover: Object.union x.hover y.hover
+    , down: Object.union x.down y.down
+    }
 
 instance Monoid SkinGrowth where
-  mempty = SkinGrowth Object.empty
+  mempty = SkinGrowth mempty
 
 growSkin :: forall msg. (msg -> Effect Unit) -> Mutation -> View msg -> Writer SkinGrowth VNode
 growSkin fire (Mutation mutation) ({ meat, hover, down, nerves } /\ bones) = do
@@ -444,9 +454,23 @@ growSkin fire (Mutation mutation) ({ meat, hover, down, nerves } /\ bones) = do
               Generic -> alignCenter
         )
       let hoverClasses /\ (SkinGrowth hover') = runWriter $ traverse (skin ctx) hover
-      _ <- traverseWithIndex (\key val -> tell $ SkinGrowth $ Object.singleton (key <> "-hover:hover") val) hover'
+      _ <- traverseWithIndex
+        ( \key val -> tell $ SkinGrowth $
+            { meat: Object.empty
+            , hover: Object.singleton (key <> "-hover:hover") val
+            , down: Object.empty
+            }
+        )
+        hover'.meat
       let downClasses /\ (SkinGrowth down') = runWriter $ traverse (skin ctx) down
-      _ <- traverseWithIndex (\key val -> tell $ SkinGrowth $ Object.singleton (key <> "-down:active") val) down'
+      _ <- traverseWithIndex
+        ( \key val -> tell $ SkinGrowth $
+            { meat: Object.empty
+            , hover: Object.empty
+            , down: Object.singleton (key <> "-down:active") val
+            }
+        )
+        down'.meat
 
       pure $ meatClasses <> map (_ <> "-hover") (Array.concat hoverClasses) <> map (_ <> "-down") (Array.concat downClasses)
 
