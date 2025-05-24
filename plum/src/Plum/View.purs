@@ -2,6 +2,10 @@ module Plum.View
   ( View
   , Nerve(..)
   , Meat(..)
+  , BorderStyle(..)
+  , Corner(..)
+  , Shadow(..)
+  , ShadowCfg
   , Side(..)
   , Bones(..)
   , grow
@@ -39,6 +43,13 @@ module Plum.View
   , pointer
   , move
   , clip
+  , borders
+  , border
+  , borderStyle
+  , roundAll
+  , round
+  , shadow
+  , innerShadow
   , onHover
   , onMouseDown
   ) where
@@ -242,6 +253,27 @@ onHover (UI { meat } a) = UI (mempty :: GenericUIView ch msg) { hover = meat } a
 onMouseDown :: forall ch msg. Monoid ch => GenericUI Unit msg Unit -> GenericUI ch msg Unit
 onMouseDown (UI { meat } a) = UI (mempty :: GenericUIView ch msg) { down = meat } a
 
+borders :: forall ch msg. Monoid ch => Int -> GenericUI ch msg Unit
+borders l = Array.foldMap (\s -> m $ BorderWidth s l) [ Top, Right, Bottom, Left ]
+
+border :: forall ch msg. Monoid ch => Side -> Int -> GenericUI ch msg Unit
+border s l = m $ BorderWidth s l
+
+borderStyle :: forall ch msg. Monoid ch => BorderStyle -> GenericUI ch msg Unit
+borderStyle s = m $ BorderStyle s
+
+roundAll :: forall ch msg. Monoid ch => Int -> GenericUI ch msg Unit
+roundAll l = Array.foldMap (\c -> m $ Round c l) [ TopLeft, TopRight, BottomRight, BottomLeft ]
+
+round :: forall ch msg. Monoid ch => Corner -> Int -> GenericUI ch msg Unit
+round c l = m $ Round c l
+
+shadow :: forall ch msg. Monoid ch => ShadowCfg -> GenericUI ch msg Unit
+shadow cfg = m $ Shadow $ ShadowCfg cfg
+
+innerShadow :: forall ch msg. Monoid ch => ShadowCfg -> GenericUI ch msg Unit
+innerShadow cfg = m $ InnerShadow $ ShadowCfg cfg
+
 data Meat
   = Spacing Int Int
   | Explain
@@ -256,6 +288,45 @@ data Meat
   | Pointer
   | Move { x :: Int, y :: Int }
   | Clip Direction
+  | BorderWidth Side Int
+  | BorderStyle BorderStyle
+  | Round Corner Int
+  | Shadow Shadow
+  | InnerShadow Shadow
+
+type ShadowCfg = { offset :: { x :: Int, y :: Int }, size :: Number, blur :: Number, color :: Color }
+
+newtype Shadow = ShadowCfg ShadowCfg
+
+instance Renderable Shadow where
+  render (ShadowCfg s) = show s.offset.x <> "px " <> show s.offset.y <> "px " <> show s.blur <> "px " <> show s.size <> "px " <> render s.color
+  renderKey (ShadowCfg s) = show s.offset.x <> "-" <> show s.offset.y <> "-" <> show s.blur <> "-" <> show s.size <> "-" <> renderKey s.color
+
+data Corner = TopLeft | TopRight | BottomRight | BottomLeft
+
+instance Renderable Corner where
+  render = case _ of
+    TopLeft -> "top-left"
+    TopRight -> "top-right"
+    BottomRight -> "bottom-right"
+    BottomLeft -> "bottom-left"
+  renderKey = case _ of
+    TopLeft -> "top-left"
+    TopRight -> "top-right"
+    BottomRight -> "bottom-right"
+    BottomLeft -> "bottom-left"
+
+data BorderStyle = Solid | Dashed | Dotted
+
+instance Renderable BorderStyle where
+  render = case _ of
+    Solid -> "solid"
+    Dashed -> "dashed"
+    Dotted -> "dotted"
+  renderKey = case _ of
+    Solid -> "solid"
+    Dashed -> "dashed"
+    Dotted -> "dotted"
 
 data Side = Top | Right | Bottom | Left
 
@@ -353,6 +424,11 @@ skin ctx = case _ of
   Move { x, y } -> sk ("move-" <> show x <> "-" <> show y) "transform" ("translate(" <> show x <> "px, " <> show y <> "px)")
   Clip X -> sk "clip-x" "overflow-x" "hidden"
   Clip Y -> sk "clip-y" "overflow-y" "hidden"
+  BorderWidth side l -> sk ("border-width-" <> renderKey side <> "-" <> show l) ("border-" <> render side <> "-width") (show l <> "px")
+  BorderStyle s -> sk ("border-style-" <> renderKey s) "border-style" (render s)
+  Round corner l -> sk ("round-" <> renderKey corner <> "-" <> show l) ("border-" <> render corner <> "-radius") (show l <> "px")
+  Shadow s -> sk ("shadow-" <> renderKey s) "box-shadow" (render s)
+  InnerShadow s -> sk ("inner-shadow-" <> renderKey s) "box-shadow" (render s <> " inset")
 
 class Renderable x where
   render :: x -> String
@@ -523,3 +599,4 @@ grow fire v =
     node /\ skinGrowth = runWriter (growSkin fire mempty v)
   in
     { node, style: styleSkinGrowth skinGrowth }
+
