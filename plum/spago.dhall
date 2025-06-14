@@ -6,12 +6,15 @@
   , "effect"
   , "foldable-traversable"
   , "foreign-object"
+  , "functions"
   , "integers"
+  , "literals"
   , "maybe"
   , "numbers"
   , "prelude"
   , "record"
   , "refs"
+  , "strings"
   , "strings-extra"
   , "transformers"
   , "tuples"
@@ -19,6 +22,7 @@
   , "unsafe-coerce"
   , "untagged-union"
   , "web-dom"
+  , "web-events"
   , "web-html"
   ]
 , packages = ../packages.dhall

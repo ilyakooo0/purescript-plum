@@ -4,11 +4,16 @@ import Prelude
 
 import Data.Array ((:))
 import Data.Array as Array
+import Data.Function.Uncurried (runFn2)
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
+import Effect.Console (log)
 import Effect.Ref as Ref
-import Maquette as Maquette
+import Foreign.Object as Object
+import Literals.Undefined (undefined)
 import Plum.View (GenericUI(..), UI, grow)
+import Snabbdom as Snabbdom
+import Untagged.Union (asOneOf)
 import Web.DOM.NonElementParentNode (getElementById) as Web
 import Web.HTML (window) as Web
 import Web.HTML.HTMLDocument (toNonElementParentNode) as Web
@@ -22,35 +27,55 @@ type Plum msg model =
 
 run :: forall msg model. String -> Plum msg model -> Effect Unit
 run id plum = do
-  modelRef <- plum.init >>= Ref.new
+  initModel <- plum.init
+  modelRef <- Ref.new initModel
   Web.window >>= Web.document >>= Web.getElementById id <<< Web.toNonElementParentNode >>= case _ of
     Just element -> do
-      projector <- Maquette.createProjector
-      Maquette.replace projector element do
-        model <- Ref.read modelRef
+      patch <- Snabbdom.init
+      let
+        view model = do
+          let UI { children } _ = plum.view model
+          case Array.uncons children of
+            Just { head: child } -> do
+              let
+                { node, style } = grow
+                  ( \msg -> do
+                      m <- Ref.read modelRef
+                      m_ <- plum.update msg m
+                      Ref.write m_ modelRef
+                      node <- view m_
+                      _ <- patch element node
+                      pure unit
+                  )
+                  child
+              pure $
+                Snabbdom.h "div"
+                  { attrs: Object.empty
+                  , on: Object.empty
+                  , style: Object.empty
+                  }
+                  [ Snabbdom.h "style"
+                      { attrs: Object.empty
+                      , on: Object.empty
+                      , style: Object.empty
+                      }
+                      []
+                      (asOneOf $ outerStyle <> style)
+                  , node
+                  ]
+                  (asOneOf undefined)
+            Nothing -> pure $
+              Snabbdom.h "div"
+                { attrs: Object.empty
+                , on: Object.empty
+                , style: Object.empty
+                }
+                []
+                (asOneOf undefined)
+      node <- view initModel
+      _ <- patch element node
 
-        ( let
-            UI { children } _ = plum.view model
-          in
-            pure $ case Array.head children of
-              Nothing -> Maquette.h "div" {} []
-              Just child ->
-                let
-                  { node, style } =
-                    ( grow
-                        ( \msg -> do
-                            m <- Ref.read modelRef
-                            m_ <- plum.update msg m
-                            Ref.write m_ modelRef
-                            Maquette.scheduleRender projector
-                        )
-                    ) child
-                in
-                  Maquette.h
-                    "div"
-                    { styles: { height: "100%", width: "100%" } }
-                    [ Maquette.h "style" {} [ Maquette.string (outerStyle <> style) ], node ]
-        )
+      pure unit
     Nothing -> pure unit
 
 outerStyle :: String

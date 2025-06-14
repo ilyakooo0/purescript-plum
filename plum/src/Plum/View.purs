@@ -2,6 +2,7 @@ module Plum.View
   ( View
   , Nerve(..)
   , Meat(..)
+  , Font
   , BorderStyle(..)
   , Corner(..)
   , Shadow(..)
@@ -26,7 +27,7 @@ module Plum.View
   , text
   , link
   , newTabLink
-  , el
+  -- , el
   , download
   , downloadAs
   , image
@@ -52,6 +53,9 @@ module Plum.View
   , innerShadow
   , onHover
   , onMouseDown
+  , font
+  , fontSize
+  , fontWeight
   ) where
 
 import Prelude
@@ -61,15 +65,21 @@ import Data.Array as Array
 import Data.Int as Int
 import Data.Maybe (Maybe(..))
 import Data.Maybe as Maybe
+import Data.String as String
 import Data.Traversable (traverse)
 import Data.TraversableWithIndex (traverseWithIndex)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Foreign.Object (Object)
 import Foreign.Object as Object
-import Maquette (VNode, string)
-import Maquette as Maquette
+import Literals.Undefined (undefined)
+import Prim.TypeError (class Warn)
+import Prim.TypeError as TypeError
 import Record.Unsafe.Union as Record
+import Snabbdom (VNode)
+import Snabbdom as Snabbdom
+import Type.Row.Homogeneous (class Homogeneous)
+import Untagged.Union (type (|+|), asOneOf)
 
 type GenericUIView children msg =
   { nerves :: Array (Nerve msg)
@@ -109,9 +119,9 @@ instance Monoid children => Bind (GenericUI children msg) where
 
 instance Monoid children => Monad (GenericUI children msg)
 
-column :: forall msg a. UI msg a -> UI msg a
-column (UI { nerves, meat, hover, down, children } a) =
-  UI (mempty :: UIView msg) { children = [ { meat, nerves, hover, down } /\ Column children ] } a
+column :: forall msg. UI msg Unit -> UI msg Unit
+column (UI { nerves, meat, hover, down, children } _) =
+  UI (mempty :: UIView msg) { children = [ { meat, nerves, hover, down } /\ Column children ] } unit
 
 row :: forall msg a. UI msg a -> UI msg a
 row (UI { nerves, meat, hover, down, children } a) =
@@ -193,11 +203,35 @@ image :: forall msg a. String -> { description :: String } -> GenericUI Unit msg
 image url description (UI { nerves, meat, hover, down } a) =
   UI (mempty :: UIView msg) { children = [ { meat, nerves, hover, down } /\ Image url description ] } a
 
-h :: String -> Classes -> Array VNode -> VNode
-h elem classes children = Maquette.h elem { class: Array.intercalate " " classes } children
+string :: String -> Classes -> String -> VNode
+string elem classes string =
+  Snabbdom.h elem
+    { attrs: Object.singleton "class" (Array.intercalate " " classes)
+    , on: Object.empty
+    , style: Object.empty
+    }
+    []
+    (asOneOf string)
 
-hWith :: forall props. String -> Record props -> Classes -> Array VNode -> VNode
-hWith elem props classes children = Maquette.h elem (Record.unsafeUnion props { class: Array.intercalate " " classes }) children
+h :: String -> Classes -> Array VNode -> VNode
+h elem classes children =
+  Snabbdom.h elem
+    { attrs: Object.singleton "class" (Array.intercalate " " classes)
+    , on: Object.empty
+    , style: Object.empty
+    }
+    children
+    (asOneOf undefined)
+
+hWith :: forall props. Homogeneous props String => String -> Record props -> Classes -> Array VNode -> VNode
+hWith elem props classes children =
+  Snabbdom.h elem
+    { attrs: Object.union (Object.fromHomogeneous props) (Object.singleton "class" (Array.intercalate " " classes))
+    , on: Object.empty
+    , style: Object.empty
+    }
+    children
+    (asOneOf undefined)
 
 data Length = Px Int | Fill | Fit | Max Int Length | Min Int Length
 
@@ -211,7 +245,7 @@ m meat = UI (mempty :: GenericUIView ch msg) { meat = [ meat ] } mempty
 spacing :: forall ch msg. Monoid ch => { x :: Int, y :: Int } -> GenericUI ch msg Unit
 spacing { x, y } = m $ Spacing x y
 
-explain :: forall ch msg. Monoid ch => GenericUI ch msg Unit
+explain :: forall ch msg. Monoid ch => Warn (TypeError.Text "Debug explain present") => GenericUI ch msg Unit
 explain = m Explain
 
 align :: forall ch msg. Monoid ch => Direction -> Alignment -> GenericUI ch msg Unit
@@ -274,6 +308,15 @@ shadow cfg = m $ Shadow $ ShadowCfg cfg
 innerShadow :: forall ch msg. Monoid ch => ShadowCfg -> GenericUI ch msg Unit
 innerShadow cfg = m $ InnerShadow $ ShadowCfg cfg
 
+font :: forall ch msg. Monoid ch => String -> GenericUI ch msg Unit
+font f = m $ Font f
+
+fontSize :: forall ch msg. Monoid ch => Int -> GenericUI ch msg Unit
+fontSize f = m $ FontSize f
+
+fontWeight :: forall ch msg. Monoid ch => Int -> GenericUI ch msg Unit
+fontWeight f = m $ FontWeight f
+
 data Meat
   = Spacing Int Int
   | Explain
@@ -293,6 +336,12 @@ data Meat
   | Round Corner Int
   | Shadow Shadow
   | InnerShadow Shadow
+  | FontColor Color
+  | FontWeight Int
+  | FontSize Int
+  | Font Font
+
+type Font = String
 
 type ShadowCfg = { offset :: { x :: Int, y :: Int }, size :: Number, blur :: Number, color :: Color }
 
@@ -429,6 +478,13 @@ skin ctx = case _ of
   Round corner l -> sk ("round-" <> renderKey corner <> "-" <> show l) ("border-" <> render corner <> "-radius") (show l <> "px")
   Shadow s -> sk ("shadow-" <> renderKey s) "box-shadow" (render s)
   InnerShadow s -> sk ("inner-shadow-" <> renderKey s) "box-shadow" (render s <> " inset")
+  FontColor c -> sk ("font-color-" <> renderKey c) "color" (render c)
+  FontSize l -> sk ("font-size-" <> show l) "font-size" (show l <> "px")
+  Font f -> sk ("font-" <> removeSpaces f) "font-family" f
+  FontWeight w -> sk ("font-weight-" <> show w) "font-weight" (show w)
+
+removeSpaces :: String -> String
+removeSpaces = String.replaceAll (String.Pattern " ") (String.Replacement "-")
 
 class Renderable x where
   render :: x -> String
@@ -551,7 +607,7 @@ growSkin fire (Mutation mutation) ({ meat, hover, down, nerves } /\ bones) = do
       pure $ meatClasses <> map (_ <> "-hover") (Array.concat hoverClasses) <> map (_ <> "-down") (Array.concat downClasses)
 
   case bones of
-    Text t -> (\c -> h "span" c [ string t ]) <$> (skn Span)
+    Text t -> (\c -> string "span" c t) <$> (skn Span)
     Wrapper x -> do
       classes <- (skn (Flexbox X) <> sk "display-flex" "display" "flex" <> sk "flex-direction-row" "flex-direction" "row")
       x' <- growSkin fire mempty x
