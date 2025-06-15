@@ -27,7 +27,6 @@ module Plum.View
   , text
   , link
   , newTabLink
-  -- , el
   , download
   , downloadAs
   , image
@@ -56,12 +55,16 @@ module Plum.View
   , font
   , fontSize
   , fontWeight
+  , onClick
   ) where
 
 import Prelude
 
 import Control.Monad.Writer (Writer, runWriter, tell)
+import Control.Monad.Writer.Trans (mapWriterT)
+import Data.Array (foldMap)
 import Data.Array as Array
+import Data.Array.NonEmpty (concatMap)
 import Data.Int as Int
 import Data.Maybe (Maybe(..))
 import Data.Maybe as Maybe
@@ -75,11 +78,11 @@ import Foreign.Object as Object
 import Literals.Undefined (undefined)
 import Prim.TypeError (class Warn)
 import Prim.TypeError as TypeError
-import Record.Unsafe.Union as Record
 import Snabbdom (VNode)
 import Snabbdom as Snabbdom
 import Type.Row.Homogeneous (class Homogeneous)
-import Untagged.Union (type (|+|), asOneOf)
+import Untagged.Union (asOneOf)
+import Web.Event.Event (Event)
 
 type GenericUIView children msg =
   { nerves :: Array (Nerve msg)
@@ -147,19 +150,6 @@ link url (UI { nerves, meat, hover, down, children } a) = UI
     }
   a
 
-el :: forall msg a. UI msg a -> UI msg a
-el (UI { nerves, meat, down, hover, children } a) = UI
-  (mempty :: UIView msg)
-    { children =
-        [ { meat
-          , nerves
-          , hover
-          , down
-          } /\ Wrapper (Maybe.fromMaybe none $ Array.head children)
-        ]
-    }
-  a
-
 newTabLink :: forall msg a. String -> UI msg a -> UI msg a
 newTabLink url (UI { nerves, meat, hover, down, children } a) = UI
   (mempty :: UIView msg)
@@ -203,31 +193,31 @@ image :: forall msg a. String -> { description :: String } -> GenericUI Unit msg
 image url description (UI { nerves, meat, hover, down } a) =
   UI (mempty :: UIView msg) { children = [ { meat, nerves, hover, down } /\ Image url description ] } a
 
-string :: String -> Classes -> String -> VNode
-string elem classes string =
+string :: String -> Classes -> WiredNerves -> String -> VNode
+string elem classes (WiredNerves on) s =
   Snabbdom.h elem
     { attrs: Object.singleton "class" (Array.intercalate " " classes)
-    , on: Object.empty
+    , on
     , style: Object.empty
     }
     []
-    (asOneOf string)
+    (asOneOf s)
 
-h :: String -> Classes -> Array VNode -> VNode
-h elem classes children =
+h :: String -> Classes -> WiredNerves -> Array VNode -> VNode
+h elem classes (WiredNerves on) children =
   Snabbdom.h elem
     { attrs: Object.singleton "class" (Array.intercalate " " classes)
-    , on: Object.empty
+    , on
     , style: Object.empty
     }
     children
     (asOneOf undefined)
 
-hWith :: forall props. Homogeneous props String => String -> Record props -> Classes -> Array VNode -> VNode
-hWith elem props classes children =
+hWith :: forall props. Homogeneous props String => String -> Record props -> Classes -> WiredNerves -> Array VNode -> VNode
+hWith elem props classes (WiredNerves on) children =
   Snabbdom.h elem
     { attrs: Object.union (Object.fromHomogeneous props) (Object.singleton "class" (Array.intercalate " " classes))
-    , on: Object.empty
+    , on
     , style: Object.empty
     }
     children
@@ -238,6 +228,12 @@ data Length = Px Int | Fill | Fit | Max Int Length | Min Int Length
 data Alignment = Start | Center | End
 
 data Direction = X | Y
+
+n :: forall ch msg. Monoid ch => Nerve msg -> GenericUI ch msg Unit
+n nerve = UI (mempty :: GenericUIView ch msg) { nerves = [ nerve ] } mempty
+
+onClick :: forall ch msg. Monoid ch => msg -> GenericUI ch msg Unit
+onClick msg = n $ OnClick msg
 
 m :: forall ch msg. Monoid ch => Meat -> GenericUI ch msg Unit
 m meat = UI (mempty :: GenericUIView ch msg) { meat = [ meat ] } mempty
@@ -393,7 +389,25 @@ instance Renderable Side where
 
 data Nerve msg = OnClick msg
 
-type View msg = { nerves :: Array (Nerve msg), meat :: Array Meat, hover :: Array Meat, down :: Array Meat } /\ Bones msg
+newtype WiredNerves = WiredNerves (Object (Event -> Effect Unit))
+
+instance Semigroup WiredNerves where
+  append (WiredNerves x) (WiredNerves y) =
+    WiredNerves $ Object.unionWith (\f g ev -> f ev *> g ev) x y
+
+instance Monoid WiredNerves where
+  mempty = WiredNerves Object.empty
+
+wireNerve :: forall msg. (msg -> Effect Unit) -> Nerve msg -> WiredNerves
+wireNerve fire nerve = WiredNerves $ case nerve of
+  OnClick msg -> Object.singleton "click" $ \_ev -> fire msg
+
+type View msg =
+  { nerves :: Array (Nerve msg)
+  , meat :: Array Meat
+  , hover :: Array Meat
+  , down :: Array Meat
+  } /\ Bones msg
 
 none :: forall msg. View msg
 none = mempty /\ None
@@ -569,6 +583,7 @@ instance Monoid SkinGrowth where
 growSkin :: forall msg. (msg -> Effect Unit) -> Mutation -> View msg -> Writer SkinGrowth VNode
 growSkin fire (Mutation mutation) ({ meat, hover, down, nerves } /\ bones) = do
   let
+    wiredNerves = Array.foldMap (wireNerve fire) nerves
     alignCenter = [ Align X Center, Align Y Center ]
     widthFill = [ Width Fill, Height Fill ]
     skn ctx = do
@@ -607,25 +622,25 @@ growSkin fire (Mutation mutation) ({ meat, hover, down, nerves } /\ bones) = do
       pure $ meatClasses <> map (_ <> "-hover") (Array.concat hoverClasses) <> map (_ <> "-down") (Array.concat downClasses)
 
   case bones of
-    Text t -> (\c -> string "span" c t) <$> (skn Span)
+    Text t -> (\c -> string "span" c wiredNerves t) <$> (skn Span)
     Wrapper x -> do
       classes <- (skn (Flexbox X) <> sk "display-flex" "display" "flex" <> sk "flex-direction-row" "flex-direction" "row")
       x' <- growSkin fire mempty x
-      pure $ h "div" classes [ x' ]
+      pure $ h "div" classes wiredNerves [ x' ]
     Stack children -> do
       classes <- (skn Grid <> sk "display-grid" "display" "grid")
       extraSkin <- sk "grid-row-1" "grid-row" "1" <> sk "grid-column-1" "grid-column" "1"
       children' <- (traverse (growSkin fire $ Mutation { extraSkin }) children)
-      pure $ h "div" classes children'
+      pure $ h "div" classes wiredNerves children'
 
     Row children -> do
       classes <- (skn (Flexbox X) <> sk "display-flex" "display" "flex" <> sk "flex-direction-row" "flex-direction" "row")
       children' <- traverse (growSkin fire mempty) children
-      pure $ h "div" classes children'
+      pure $ h "div" classes wiredNerves children'
     Column children -> do
       classes <- (skn (Flexbox Y) <> sk "display-flex" "display" "flex" <> sk "flex-direction-column" "flex-direction" "column")
       children' <- traverse (growSkin fire mempty) children
-      pure $ h "div" classes children'
+      pure $ h "div" classes wiredNerves children'
     Link href { newTab } child -> do
       classes <- (skn (Flexbox X) <> sk "display-flex" "display" "flex" <> sk "flex-direction-row" "flex-direction" "row")
       child' <- growSkin fire mempty child
@@ -635,6 +650,7 @@ growSkin fire (Mutation mutation) ({ meat, hover, down, nerves } /\ bones) = do
         , target: if newTab then "_blank" else "_self"
         }
         classes
+        wiredNerves
         [ child' ]
 
     Download href { filename } child -> do
@@ -645,9 +661,10 @@ growSkin fire (Mutation mutation) ({ meat, hover, down, nerves } /\ bones) = do
         , download: Maybe.fromMaybe "" filename
         }
         classes
+        wiredNerves
         [ child' ]
-    Image src { description } -> (\c -> hWith "img" { src, alt: description } c []) <$> (skn Generic)
-    None -> pure $ h "div" mempty []
+    Image src { description } -> (\c -> hWith "img" { src, alt: description } c wiredNerves []) <$> (skn Generic)
+    None -> pure $ h "div" mempty wiredNerves []
 
 grow :: forall msg. (msg -> Effect Unit) -> View msg -> { node :: VNode, style :: String }
 grow fire v =

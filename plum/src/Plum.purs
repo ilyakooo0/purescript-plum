@@ -2,9 +2,7 @@ module Plum (Plum, run) where
 
 import Prelude
 
-import Data.Array ((:))
 import Data.Array as Array
-import Data.Function.Uncurried (runFn2)
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Console (log)
@@ -27,11 +25,12 @@ type Plum msg model =
 
 run :: forall msg model. String -> Plum msg model -> Effect Unit
 run id plum = do
-  initModel <- plum.init
-  modelRef <- Ref.new initModel
   Web.window >>= Web.document >>= Web.getElementById id <<< Web.toNonElementParentNode >>= case _ of
     Just element -> do
+      let node = Snabbdom.toVNode element
       patch <- Snabbdom.init
+      initModel <- plum.init
+      modelRef <- Ref.new { model: initModel, lastNode: node }
       let
         view model = do
           let UI { children } _ = plum.view model
@@ -40,11 +39,12 @@ run id plum = do
               let
                 { node, style } = grow
                   ( \msg -> do
-                      m <- Ref.read modelRef
+                      log "in"
+                      { model: m, lastNode } <- Ref.read modelRef
                       m_ <- plum.update msg m
-                      Ref.write m_ modelRef
                       node <- view m_
-                      _ <- patch element node
+                      newNode <- patch lastNode node
+                      Ref.write { model: m_, lastNode: newNode } modelRef
                       pure unit
                   )
                   child
@@ -72,9 +72,10 @@ run id plum = do
                 }
                 []
                 (asOneOf undefined)
-      node <- view initModel
-      _ <- patch element node
-
+      newNode <- view initModel
+      newNode_ <- patch node newNode
+      log "patched"
+      Ref.write { model: initModel, lastNode: newNode_ } modelRef
       pure unit
     Nothing -> pure unit
 
