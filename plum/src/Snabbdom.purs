@@ -25,6 +25,7 @@ h
   -> { attrs :: Object String
      , on :: Object (Event -> Effect Unit)
      , style :: Object String
+     , props :: Object String
      }
   -> Array VNode
   -> (String |+| Undefined)
@@ -35,6 +36,7 @@ h tag props children text = runFn4 vnode
       :: { attrs :: Object String
          , on :: Object (EffectFn1 Event Unit)
          , style :: Object String
+         , props :: Object String
          }
   )
   children

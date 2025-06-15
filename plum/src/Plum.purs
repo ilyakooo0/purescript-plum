@@ -53,11 +53,13 @@ run id plum = do
                   { attrs: Object.empty
                   , on: Object.empty
                   , style: Object.empty
+                  , props: Object.empty
                   }
                   [ Snabbdom.h "style"
                       { attrs: Object.empty
                       , on: Object.empty
                       , style: Object.empty
+                      , props: Object.empty
                       }
                       []
                       (asOneOf $ outerStyle <> style)
@@ -69,6 +71,7 @@ run id plum = do
                 { attrs: Object.empty
                 , on: Object.empty
                 , style: Object.empty
+                , props: Object.empty
                 }
                 []
                 (asOneOf undefined)

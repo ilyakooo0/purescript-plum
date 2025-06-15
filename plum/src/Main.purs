@@ -12,7 +12,7 @@ main = do
 
 type Model = { text :: String, numberOfClicks :: Int }
 
-data Msg = Clicked
+data Msg = Clicked | UpdateText String
 
 plum :: Plum.Plum Msg Model
 plum =
@@ -52,6 +52,8 @@ plum =
         row do
           text (model.text <> ": " <> show model.numberOfClicks) mempty
           onClick Clicked
+          textInput { onChange: UpdateText, value: model.text } mempty
   , update: \msg model -> case msg of
       Clicked -> pure model { text = "Button pressed", numberOfClicks = model.numberOfClicks + 1 }
+      UpdateText text -> pure model { text = text }
   }

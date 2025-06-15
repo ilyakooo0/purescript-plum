@@ -30,6 +30,7 @@ module Plum.View
   , download
   , downloadAs
   , image
+  , textInput
   , spacing
   , explain
   , align
@@ -81,8 +82,14 @@ import Prim.TypeError as TypeError
 import Snabbdom (VNode)
 import Snabbdom as Snabbdom
 import Type.Row.Homogeneous (class Homogeneous)
+import Unsafe.Coerce (unsafeCoerce)
 import Untagged.Union (asOneOf)
+import Web.DOM.Element as Element
+import Web.DOM.ParentNode (firstElementChild)
 import Web.Event.Event (Event)
+import Web.Event.Event as Event
+import Web.UIEvent.InputEvent as InputEvent
+import Web.HTML.HTMLInputElement as HTMLInputElement
 
 type GenericUIView children msg =
   { nerves :: Array (Nerve msg)
@@ -193,12 +200,17 @@ image :: forall msg a. String -> { description :: String } -> GenericUI Unit msg
 image url description (UI { nerves, meat, hover, down } a) =
   UI (mempty :: UIView msg) { children = [ { meat, nerves, hover, down } /\ Image url description ] } a
 
+textInput :: forall msg a. { value :: String, onChange :: String -> msg } -> GenericUI Unit msg a -> UI msg a
+textInput props (UI { nerves, meat, hover, down } a) =
+  UI (mempty :: UIView msg) { children = [ { meat, nerves, hover, down } /\ TextInput props ] } a
+
 string :: String -> Classes -> WiredNerves -> String -> VNode
 string elem classes (WiredNerves on) s =
   Snabbdom.h elem
     { attrs: Object.singleton "class" (Array.intercalate " " classes)
     , on
     , style: Object.empty
+    , props: Object.empty
     }
     []
     (asOneOf s)
@@ -208,6 +220,7 @@ h elem classes (WiredNerves on) children =
   Snabbdom.h elem
     { attrs: Object.singleton "class" (Array.intercalate " " classes)
     , on
+    , props: Object.empty
     , style: Object.empty
     }
     children
@@ -216,8 +229,9 @@ h elem classes (WiredNerves on) children =
 hWith :: forall props. Homogeneous props String => String -> Record props -> Classes -> WiredNerves -> Array VNode -> VNode
 hWith elem props classes (WiredNerves on) children =
   Snabbdom.h elem
-    { attrs: Object.union (Object.fromHomogeneous props) (Object.singleton "class" (Array.intercalate " " classes))
+    { attrs: Object.singleton "class" (Array.intercalate " " classes)
     , on
+    , props: Object.fromHomogeneous props
     , style: Object.empty
     }
     children
@@ -546,6 +560,7 @@ data Bones msg
   | Link String { newTab :: Boolean } (View msg)
   | Download String { filename :: Maybe String } (View msg)
   | Image String { description :: String }
+  | TextInput { value :: String, onChange :: String -> msg }
   | None
 
 type Classes = Array String
@@ -664,6 +679,16 @@ growSkin fire (Mutation mutation) ({ meat, hover, down, nerves } /\ bones) = do
         wiredNerves
         [ child' ]
     Image src { description } -> (\c -> hWith "img" { src, alt: description } c wiredNerves []) <$> (skn Generic)
+    TextInput { value, onChange } -> do
+      classes <- skn Generic
+      let
+        onInputNerve = WiredNerves $ Object.singleton "input" $ \ev ->
+          case Event.currentTarget ev >>= HTMLInputElement.fromEventTarget of
+            Nothing -> pure unit
+            Just inputEl -> do
+              val <- HTMLInputElement.value inputEl
+              fire $ onChange val
+      pure $ hWith "input" { value } classes (wiredNerves <> onInputNerve) []
     None -> pure $ h "div" mempty wiredNerves []
 
 grow :: forall msg. (msg -> Effect Unit) -> View msg -> { node :: VNode, style :: String }
